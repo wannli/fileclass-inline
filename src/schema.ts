@@ -3,7 +3,7 @@ import { isHighlightColor, type HighlightColor } from './highlight';
 
 export type FieldKind = 'text' | 'number' | 'checkbox' | 'date' | 'select' | 'link' | 'text-list';
 export interface Field { kind: FieldKind; requiredOnCreate?: boolean; default?: unknown; options?: string[]; targetType?: string }
-export interface NodeSchema { nodeType: string; label: string; highlight?: HighlightColor; properties: Record<string, Field>; template: string; path: string }
+export interface NodeSchema { nodeSchema: number; nodeType: string; label: string; highlight?: HighlightColor; properties: Record<string, Field>; template: string; path: string }
 export interface Diagnostic { path: string; message: string }
 export interface Catalog { schemas: NodeSchema[]; diagnostics: Diagnostic[] }
 const kinds = new Set(['text', 'number', 'checkbox', 'date', 'select', 'link', 'text-list']);
@@ -39,7 +39,7 @@ export function validateSchema(meta: unknown, template: string, path: string): {
   if (meta.properties !== undefined && !object(meta.properties)) errors.push('properties: expected mapping');
   const properties: Record<string, Field> = Object.create(null);
   if (object(meta.properties)) for (const [name, definition] of Object.entries(meta.properties)) {
-    if (!name.trim() || ['type', '__proto__', 'prototype', 'constructor'].includes(name)) { errors.push(`${name}: reserved property`); continue; }
+    if (!name.trim() || ['type', 'schema', '__proto__', 'prototype', 'constructor'].includes(name)) { errors.push(`${name}: reserved property`); continue; }
     if (!object(definition) || !kinds.has(definition.kind as string)) { errors.push(`${name}: invalid kind`); continue; }
     const kind = definition.kind as FieldKind;
     for (const key of Object.keys(definition)) if (!['kind', 'requiredOnCreate', 'default', 'options', 'targetType'].includes(key)) errors.push(`${name}.${key}: unknown setting`);
@@ -57,7 +57,7 @@ export function validateSchema(meta: unknown, template: string, path: string): {
     if (key !== 'title' && key !== 'date' && !(key.startsWith('property:') && Object.hasOwn(properties, key.slice(9)))) errors.push(`template: unknown ${match[0]}`);
   }
   if (errors.length) return { errors };
-  return { errors, schema: { nodeType: meta.nodeType as string, label: (meta.label as string | undefined) ?? meta.nodeType as string,
+  return { errors, schema: { nodeSchema: meta.nodeSchema as number, nodeType: meta.nodeType as string, label: (meta.label as string | undefined) ?? meta.nodeType as string,
     highlight: meta.highlight as HighlightColor | undefined, properties, template, path } };
 }
 

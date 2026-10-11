@@ -28,6 +28,7 @@ export function renderNode(schema: NodeSchema, title: string, values: Values, da
   if (errors.length) throw new Error(errors.join('; '));
   const props: Values = Object.create(null);
   props.type = schema.nodeType;
+  props.schema = schema.nodeSchema;
   for (const [name, field] of Object.entries(schema.properties)) {
     const value = resolved(field, values, name);
     if (!missing(value)) props[name] = value;
