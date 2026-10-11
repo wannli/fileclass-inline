@@ -1,4 +1,5 @@
 import { App, Editor, type EditorPosition, Notice, TFile } from 'obsidian';
+import { highlightLink, type HighlightColor } from './highlight';
 
 /** Reject stale asynchronous insertions rather than guessing where the text moved. */
 export interface Origin {
@@ -20,7 +21,7 @@ export function isOriginCurrent(app: App, origin: Origin): boolean {
   return active?.editor === origin.editor && active.file === origin.file && origin.file.path === origin.path &&
     origin.editor.getValue() === origin.snapshot && origin.editor.getRange(origin.from, origin.to) === origin.source;
 }
-export function insertLink(app: App, origin: Origin, target: TFile, label: string): boolean {
+export function insertLink(app: App, origin: Origin, target: TFile, label: string, highlight?: HighlightColor): boolean {
   if (!isOriginCurrent(app, origin)) {
     new Notice(`Node available at ${target.path}; source changed, so no link was inserted.`);
     return false;
@@ -30,6 +31,6 @@ export function insertLink(app: App, origin: Origin, target: TFile, label: strin
     return false;
   }
   const link = app.fileManager.generateMarkdownLink(target, origin.path, undefined, label);
-  origin.editor.replaceRange(link, origin.from, origin.to);
+  origin.editor.replaceRange(highlightLink(link, highlight), origin.from, origin.to);
   return true;
 }

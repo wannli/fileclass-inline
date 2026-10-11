@@ -31,7 +31,7 @@ class AtSuggest extends EditorSuggest<InlineChoice> {
     this.close();
     if (!context?.file) return;
     const origin = capture(context.editor, context.file, context.start, context.end);
-    if (choice.kind === 'existing') insertLink(this.app, origin, choice.hit.entry.file, choice.hit.label);
+    if (choice.kind === 'existing') void this.plugin.linkExisting(origin, choice.hit, choice.hit.label);
     else void this.plugin.startCreate(choice.title, origin);
   }
 }
@@ -88,9 +88,19 @@ export default class NodesPlugin extends Plugin {
       return;
     }
     new LinkPicker(this.app, this.index, (choice: LinkChoice) => {
-      if (choice.kind === 'existing') insertLink(this.app, origin, choice.hit.entry.file, plan.label || choice.hit.label);
+      if (choice.kind === 'existing') void this.linkExisting(origin, choice.hit, plan.label || choice.hit.label);
       else void this.startCreate(choice.title, origin, plan.label);
     }, plan.query).open();
+  }
+  async linkExisting(origin: Origin, hit: NodeHit, label: string): Promise<void> {
+    if (this.app.vault.getAbstractFileByPath(hit.entry.file.path) !== hit.entry.file) {
+      new Notice('That node moved or was deleted; no link was inserted.');
+      return;
+    }
+    const { schemas } = await loadSchemas(this.app, this.settings.schemasFolder);
+    const type = this.index.all().find(entry => entry.file.path === hit.entry.file.path)?.type;
+    const highlight = schemas.find(schema => schema.nodeType === type)?.highlight;
+    insertLink(this.app, origin, hit.entry.file, label, highlight);
   }
   async startCreate(seed: string, origin?: Origin, label?: string, selectedBody?: string): Promise<void> {
     const { schemas, diagnostics } = await loadSchemas(this.app, this.settings.schemasFolder);
@@ -98,7 +108,7 @@ export default class NodesPlugin extends Plugin {
     if (!schemas.length) { new Notice(`No valid node schemas in ${this.settings.schemasFolder}/. Run “Check schemas”.`); return; }
     new TypePicker(this.app, schemas, schema => {
       new CreateNodeModal(this.app, this.index, schema, file => {
-        if (origin) insertLink(this.app, origin, file, label ?? file.basename);
+        if (origin) insertLink(this.app, origin, file, label ?? file.basename, schema.highlight);
         else void this.app.workspace.getLeaf(true).openFile(file).catch(error => new Notice(`Created ${file.path}; could not open it: ${String(error)}`));
       }, seed, this.settings.nodesFolder, this.settings.schemasFolder, selectedBody).open();
     }).open();

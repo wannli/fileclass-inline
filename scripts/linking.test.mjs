@@ -24,6 +24,9 @@ test('stale editor never replaces text; correct origin inserts exactly once', ()
   content = 'See Ada.';
   assert.equal(insertLink(app, origin, { path: 'Nodes/Ada.md' }, 'Ada'), true);
   assert.equal(content, 'See [[Nodes/Ada|Ada]].');
+  content = 'See Ada.';
+  assert.equal(insertLink(app, capture(editor, file, { line: 0, ch: 4 }, { line: 0, ch: 7 }), { path: 'Nodes/Ada.md' }, 'Ada', 'green'), true);
+  assert.equal(content, 'See ==🟢[[Nodes/Ada|Ada]]==.');
 });
 
 test('trigger accepts punctuation boundary but ignores email and frontmatter', () => {
