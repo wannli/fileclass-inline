@@ -39,5 +39,6 @@ export class NodeIndex {
 }
 
 function compare(a: NodeHit, b: NodeHit): number {
-  return a.rank - b.rank || a.score - b.score || a.label.localeCompare(b.label) || a.entry.file.path.localeCompare(b.entry.file.path);
+  // Obsidian fuzzy scores are negative; closer to zero is a better match.
+  return a.rank - b.rank || b.score - a.score || a.label.localeCompare(b.label) || a.entry.file.path.localeCompare(b.entry.file.path);
 }
