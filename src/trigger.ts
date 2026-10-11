@@ -1,10 +1,11 @@
 import type { Editor, EditorPosition, EditorSuggestTriggerInfo } from 'obsidian';
 
 /** Conservative Markdown guard. It only does the more expensive document check after @ is detected. */
-export function atTrigger(editor: Editor, cursor: EditorPosition): EditorSuggestTriggerInfo | null {
+export function atTrigger(editor: Editor, cursor: EditorPosition, trigger = '@'): EditorSuggestTriggerInfo | null {
   if (editor.somethingSelected()) return null;
   const before = editor.getLine(cursor.line).slice(0, cursor.ch);
-  const match = before.match(/(^|[\s([{])@([\p{L}\p{N}_ .'-]{0,80})$/u);
+  const escaped = trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = before.match(new RegExp(`(^|[\\s([{])${escaped}([\\p{L}\\p{N}_ .'-]{0,80})$`, 'u'));
   if (!match) return null;
   const start = { line: cursor.line, ch: cursor.ch - match[2].length - 1 };
   const linePrefix = before.slice(0, start.ch);

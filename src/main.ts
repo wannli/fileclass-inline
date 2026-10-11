@@ -1,17 +1,18 @@
-import { Editor, EditorSuggest, type EditorSuggestContext, type EditorSuggestTriggerInfo, type EditorPosition, Modal, Notice, Plugin, TFile } from 'obsidian';
+import { Editor, EditorSuggest, type EditorSuggestContext, type EditorSuggestTriggerInfo, type EditorPosition, Modal, Notice, Plugin, Setting, TFile } from 'obsidian';
 import { loadSchemas } from './schema';
 import { NodeIndex, type NodeHit } from './index';
 import { CreateNodeModal, TypePicker } from './ui';
 import { LinkPicker, type LinkChoice } from './link-picker';
 import { capture, insertLink, type Origin } from './references';
 import { atTrigger } from './trigger';
+import { DEFAULT_SETTINGS, NodesSettingsTab, validateSettings, type NodesSettings } from './settings';
 
 type InlineChoice = { kind: 'existing'; hit: NodeHit } | { kind: 'create'; title: string };
 
 class AtSuggest extends EditorSuggest<InlineChoice> {
   constructor(app: NodesPlugin['app'], private plugin: NodesPlugin) { super(app); this.limit = 21; }
   onTrigger(cursor: EditorPosition, editor: Editor, _file: TFile | null): EditorSuggestTriggerInfo | null {
-    return atTrigger(editor, cursor);
+    return atTrigger(editor, cursor, this.plugin.settings.trigger);
   }
   getSuggestions(context: EditorSuggestContext): InlineChoice[] {
     const items: InlineChoice[] = this.plugin.index.search(context.query, 20).map(hit => ({ kind: 'existing', hit }));
@@ -35,14 +36,20 @@ class AtSuggest extends EditorSuggest<InlineChoice> {
 
 export default class NodesPlugin extends Plugin {
   index!: NodeIndex;
-  override onload(): void {
-    this.index = new NodeIndex(this.app);
+  settings: NodesSettings = { ...DEFAULT_SETTINGS };
+  override async onload(): Promise<void> {
+    const stored = await this.loadData() as Partial<NodesSettings> | null;
+    const candidate = { ...DEFAULT_SETTINGS, ...stored };
+    if (!validateSettings(candidate)) this.settings = candidate;
+    this.index = new NodeIndex(this.app, this.settings.nodesFolder);
+    this.addSettingTab(new NodesSettingsTab(this.app, this));
     this.app.workspace.onLayoutReady(() => this.index.rebuild());
-    this.registerEvent(this.app.metadataCache.on('changed', file => { if (file.path.startsWith('Nodes/')) this.index.rebuild(); }));
-    this.registerEvent(this.app.vault.on('create', file => { if (file.path.startsWith('Nodes/')) this.index.rebuild(); }));
-    this.registerEvent(this.app.vault.on('delete', file => { if (file.path.startsWith('Nodes/')) this.index.rebuild(); }));
+    const inNodes = (path: string): boolean => path.startsWith(`${this.settings.nodesFolder}/`);
+    this.registerEvent(this.app.metadataCache.on('changed', file => { if (inNodes(file.path)) this.index.rebuild(); }));
+    this.registerEvent(this.app.vault.on('create', file => { if (inNodes(file.path)) this.index.rebuild(); }));
+    this.registerEvent(this.app.vault.on('delete', file => { if (inNodes(file.path)) this.index.rebuild(); }));
     this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
-      if (file.path.startsWith('Nodes/') || oldPath.startsWith('Nodes/')) this.index.rebuild();
+      if (inNodes(file.path) || inNodes(oldPath)) this.index.rebuild();
     }));
     this.registerEditorSuggest(new AtSuggest(this.app, this));
     this.addCommand({ id: 'create-node', name: 'Create node', callback: () => { void this.startCreate(''); } });
@@ -55,6 +62,11 @@ export default class NodesPlugin extends Plugin {
     }));
     this.addCommand({ id: 'check-schemas', name: 'Check schemas', callback: () => { void this.showDiagnostics(); } });
   }
+  async saveSettings(settings: NodesSettings): Promise<void> {
+    this.settings = { ...settings };
+    await this.saveData(this.settings);
+    this.index.setFolder(settings.nodesFolder);
+  }
   private startLink(editor: Editor, file: TFile): void {
     const from = editor.getCursor('from'), to = editor.getCursor('to');
     const origin = capture(editor, file, from, to);
@@ -65,22 +77,26 @@ export default class NodesPlugin extends Plugin {
     }, origin.source).open();
   }
   async startCreate(seed: string, origin?: Origin, label?: string): Promise<void> {
-    const { schemas, diagnostics } = await loadSchemas(this.app);
+    const { schemas, diagnostics } = await loadSchemas(this.app, this.settings.schemasFolder);
     if (diagnostics.length) new Notice(`Nodes: ${diagnostics.length} schema issue(s). Run “Check schemas” for details.`);
-    if (!schemas.length) { new Notice('No valid node schemas in Schemas/. Run “Check schemas”.'); return; }
+    if (!schemas.length) { new Notice(`No valid node schemas in ${this.settings.schemasFolder}/. Run “Check schemas”.`); return; }
     new TypePicker(this.app, schemas, schema => {
       new CreateNodeModal(this.app, this.index, schema, file => {
         if (origin) insertLink(this.app, origin, file, label ?? file.basename);
         else void this.app.workspace.getLeaf(true).openFile(file).catch(error => new Notice(`Created ${file.path}; could not open it: ${String(error)}`));
-      }, seed).open();
+      }, seed, this.settings.nodesFolder, this.settings.schemasFolder).open();
     }).open();
   }
   private async showDiagnostics(): Promise<void> {
-    const catalog = await loadSchemas(this.app);
+    const catalog = await loadSchemas(this.app, this.settings.schemasFolder);
     const modal = new Modal(this.app);
     modal.contentEl.createEl('h2', { text: 'Node schemas' });
     modal.contentEl.createEl('p', { text: `${catalog.schemas.length} usable type(s), ${catalog.diagnostics.length} issue(s)` });
-    for (const issue of catalog.diagnostics) modal.contentEl.createEl('p', { text: `${issue.path}: ${issue.message}` });
+    for (const issue of catalog.diagnostics) new Setting(modal.contentEl)
+      .setName(issue.path).setDesc(issue.message).addButton(button => button.setButtonText('Open').onClick(async () => {
+        const file = this.app.vault.getAbstractFileByPath(issue.path);
+        if (file instanceof TFile) { modal.close(); await this.app.workspace.getLeaf(true).openFile(file); }
+      }));
     modal.open();
   }
 }
