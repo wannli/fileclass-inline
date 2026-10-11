@@ -1,7 +1,7 @@
 import { App, type ButtonComponent, Modal, Notice, Setting, SuggestModal, TFile } from 'obsidian';
 import { loadSchemas, type NodeSchema, type Field } from './schema';
 import { NodeIndex, type NodeHit } from './index';
-import { createNode, resolved, titleError, validateValues, type Values } from './create';
+import { createNode, inferableOnly, resolved, titleError, validateValues, type Values } from './create';
 import { renderNodeSuggestion } from './suggestion-row';
 
 export class TypePicker extends SuggestModal<NodeSchema> {
@@ -28,7 +28,7 @@ export class CreateNodeModal extends Modal {
   private pending = false;
   private errorEl?: HTMLElement;
   private createButton?: ButtonComponent;
-  constructor(app: App, private index: NodeIndex, private schema: NodeSchema, private created: (file: TFile) => void, title = '', private folder = 'Nodes', private schemaFolder = 'Schemas', private selectedBody?: string) {
+  constructor(app: App, private index: NodeIndex, private schema: NodeSchema, private created: (file: TFile, content: string, inferable: boolean) => void, title = '', private folder = 'Nodes', private schemaFolder = 'Schemas', private selectedBody?: string) {
     super(app); this.title = title; this.shouldRestoreSelection = false;
     for (const modifier of ['Ctrl', 'Meta'] as const) this.scope.register([modifier], 'Enter', () => {
       void this.submit();
@@ -65,8 +65,8 @@ export class CreateNodeModal extends Modal {
       const fresh = await loadSchemas(this.app, this.schemaFolder);
       const current = fresh.schemas.find(schema => schema.path === this.schema.path && schema.nodeType === this.schema.nodeType);
       if (!current || JSON.stringify(current) !== JSON.stringify(this.schema)) throw new Error('Schema changed while the form was open; reopen the creation form');
-      const file = await createNode(this.app, this.index, current, this.title, this.values, this.folder, this.selectedBody);
-      this.close(); this.created(file);
+      const { file, content } = await createNode(this.app, this.index, current, this.title, this.values, this.folder, this.selectedBody);
+      this.close(); this.created(file, content, inferableOnly(current, this.values, this.selectedBody));
     } catch (error) { errorEl.setText(`Could not create node: ${String(error)}`); }
     finally { this.pending = false; button.setDisabled(false); }
   }

@@ -4,6 +4,14 @@ import { fieldError, missing } from './schema';
 import { NodeIndex } from './index';
 
 export type Values = Record<string, unknown>;
+export interface CreatedNode { file: TFile; content: string }
+
+/** Values entered beyond schema defaults, or copied selection text, must never be auto-removed. */
+export function inferableOnly(schema: NodeSchema, values: Values, selectedBody?: string): boolean {
+  return !selectedBody && Object.entries(values).every(([name, value]) =>
+    Object.hasOwn(schema.properties, name) && JSON.stringify(value) === JSON.stringify(schema.properties[name].default));
+}
+
 export function titleError(title: string): string | null {
   if (!title.trim() || title !== title.trim() || title === '.' || title === '..') return 'Enter a filename without surrounding spaces';
   if (/[\\/:*?"<>|\x00-\x1f]/.test(title) || /[. ]$/.test(title)) return 'Name contains invalid filename characters';
@@ -45,7 +53,7 @@ export function renderNode(schema: NodeSchema, title: string, values: Values, da
   return `---\n${stringifyYaml(props).trimEnd()}\n---\n${template}${selectedBody ? `\n\n${selectedBody}` : ''}`;
 }
 
-export async function createNode(app: App, index: NodeIndex, schema: NodeSchema, title: string, values: Values, folder = 'Nodes', selectedBody?: string): Promise<TFile> {
+export async function createNode(app: App, index: NodeIndex, schema: NodeSchema, title: string, values: Values, folder = 'Nodes', selectedBody?: string): Promise<CreatedNode> {
   const now = new Date();
   const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
   const content = renderNode(schema, title, values, date, selectedBody);
@@ -73,5 +81,5 @@ export async function createNode(app: App, index: NodeIndex, schema: NodeSchema,
     }
   }
   // Vault.create refuses a racing duplicate; never use modify() here.
-  return app.vault.create(path, content);
+  return { file: await app.vault.create(path, content), content };
 }
