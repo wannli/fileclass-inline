@@ -6,7 +6,7 @@ import { renderNodeSuggestion } from './suggestion-row';
 
 export class TypePicker extends SuggestModal<NodeSchema> {
   constructor(app: App, private schemas: NodeSchema[], private choose: (schema: NodeSchema) => void) {
-    super(app); this.setPlaceholder('Choose a node type');
+    super(app); this.setPlaceholder('Choose a node type'); this.shouldRestoreSelection = false;
   }
   getSuggestions(query: string): NodeSchema[] { return this.schemas.filter(schema => `${schema.label} ${schema.nodeType}`.toLowerCase().includes(query.toLowerCase())); }
   renderSuggestion(schema: NodeSchema, el: HTMLElement): void { el.setText(schema.label); }
@@ -29,7 +29,7 @@ export class CreateNodeModal extends Modal {
   private errorEl?: HTMLElement;
   private createButton?: ButtonComponent;
   constructor(app: App, private index: NodeIndex, private schema: NodeSchema, private created: (file: TFile) => void, title = '', private folder = 'Nodes', private schemaFolder = 'Schemas', private selectedBody?: string) {
-    super(app); this.title = title;
+    super(app); this.title = title; this.shouldRestoreSelection = false;
     for (const modifier of ['Ctrl', 'Meta'] as const) this.scope.register([modifier], 'Enter', () => {
       void this.submit();
       return false;

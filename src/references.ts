@@ -31,6 +31,10 @@ export function insertLink(app: App, origin: Origin, target: TFile, label: strin
     return false;
   }
   const link = app.fileManager.generateMarkdownLink(target, origin.path, undefined, label);
-  origin.editor.replaceRange(highlightLink(link, highlight), origin.from, origin.to);
+  const replacement = highlightLink(link, highlight);
+  origin.editor.replaceRange(replacement, origin.from, origin.to);
+  // Do not leave the original selection (or the new highlight) selected.
+  origin.editor.setCursor({ line: origin.from.line, ch: origin.from.ch + replacement.length });
+  origin.editor.focus();
   return true;
 }

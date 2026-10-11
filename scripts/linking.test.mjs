@@ -14,8 +14,11 @@ const { atTrigger } = await load('trigger.js');
 
 test('stale editor never replaces text; correct origin inserts exactly once', () => {
   let content = 'See Ada.';
+  let cursor, focused = false;
   const file = { path: 'Today.md' };
-  const editor = { getValue: () => content, getRange: ({ ch: a }, { ch: b }) => content.slice(a, b), replaceRange: (text, { ch: a }, { ch: b }) => { content = content.slice(0, a) + text + content.slice(b); } };
+  const editor = { getValue: () => content, getRange: ({ ch: a }, { ch: b }) => content.slice(a, b),
+    replaceRange: (text, { ch: a }, { ch: b }) => { content = content.slice(0, a) + text + content.slice(b); },
+    setCursor: pos => { cursor = pos; }, focus: () => { focused = true; } };
   const app = { workspace: { activeEditor: { editor, file } }, fileManager: { generateMarkdownLink: (_target, _source, _subpath, label) => `[[Nodes/Ada|${label}]]` } };
   const origin = capture(editor, file, { line: 0, ch: 4 }, { line: 0, ch: 7 });
   content = 'See Bob.';
@@ -27,6 +30,8 @@ test('stale editor never replaces text; correct origin inserts exactly once', ()
   content = 'See Ada.';
   assert.equal(insertLink(app, capture(editor, file, { line: 0, ch: 4 }, { line: 0, ch: 7 }), { path: 'Nodes/Ada.md' }, 'Ada', 'green'), true);
   assert.equal(content, 'See ==🟢[[Nodes/Ada|Ada]]==.');
+  assert.deepEqual(cursor, { line: 0, ch: content.length - 1 });
+  assert.equal(focused, true);
 });
 
 test('trigger accepts punctuation boundary but ignores email and frontmatter', () => {

@@ -7,6 +7,7 @@ export type LinkChoice = { kind: 'existing'; hit: NodeHit } | { kind: 'create'; 
 export class LinkPicker extends SuggestModal<LinkChoice> {
   constructor(app: App, private index: NodeIndex, private choose: (choice: LinkChoice) => void, private seed = '') {
     super(app);
+    this.shouldRestoreSelection = false;
     this.setPlaceholder('Find an existing node or create one');
   }
   onOpen(): void {
