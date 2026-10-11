@@ -51,6 +51,12 @@ Supported property kinds: `text`, `number`, `checkbox`, `date`, `select`, `link`
 
 Filename collisions never overwrite. If the source editor changes while a creation form is open, the created node is kept but no unsafe link insertion occurs. Existing properties aren't silently migrated when a schema changes. Fuzzy matching uses character-sequence matching, not AI/semantic search.
 
+### Cleaning up unused nodes
+
+When a link-created node loses its last link, Nodes can move it to **Obsidian’s local trash** in the background after a short delay. This only applies to nodes created by this plugin **while inserting a link**, whose content is byte-for-byte unchanged from creation and whose values came solely from the schema/defaults. Nodes with any user-entered properties, copied multi-line text, outgoing links, another incoming link, or a changed schema are kept. Standalone-created and pre-existing notes are never tracked. Cleanup also waits for resolved links and refuses to act on open nodes or while an editor has unsaved changes. Disabling the plugin or cleanup before the link disappears fails safe rather than deleting a backlog on restart.
+
+Cleanup is enabled by default and can be turned off in **Settings → Nodes → Clean up unused nodes**. It never permanently deletes: recover a moved note from the vault’s `.trash/` folder. The plugin stores a small record of eligible generated nodes in its own settings data; removing that data disables cleanup of those nodes rather than guessing what to remove.
+
 **Verification:** Automated checks validate metadata, types, focused core behavior, and build assets. Native desktop/mobile use still needs an in-app smoke check; `isDesktopOnly: false` is not evidence of real-device verification.
 
 ## Files
