@@ -38,7 +38,8 @@ properties:
 
 - **Nodes: Create node** picks a schema, prompts for a filename and required properties, then creates a normal Markdown file with `type: person` in `Nodes/`. `false` and `0` count as filled values; cleared optional defaults are omitted. Cancel before submission creates nothing.
 - Type `@` plus a node name to choose an existing fuzzy match or **Create…**. Choose with your keyboard or tap; links use Obsidian's current link format. The symbol can be changed in settings.
-- Select text and use **Nodes: Create or link node** (also in the editor menu). It searches names and aliases and preserves the selected wording as the link label. The same command with no selection searches from the cursor. Add the command to Obsidian's mobile toolbar if desired.
+- Select text and type `@`: the selection stays intact while Nodes searches existing names and aliases. If there are matches, choose an existing node or **Create…**; if there are none, choose a schema/type and create one. A one-line selection becomes the draft title and, when linked, keeps its original wording as the label. For a multi-line selection, Nodes prompts for a title and copies the full selection into the new node before replacing the original text with its link (it never silently discards multiple lines to link an existing note).
+- **Nodes: Create or link node** (also in the editor menu) provides the same selected-text flow. With no selection, it searches from the cursor. Add the command to Obsidian's mobile toolbar as a fallback if a software keyboard does not deliver `@` as a normal text input.
 - **Nodes: Check schemas** displays invalid YAML/schema and property-kind conflicts, with buttons to open affected files.
 - Nodes are only Markdown files under `Nodes/` with a scalar `type` property. A missing schema doesn't hide existing nodes from search. Settings can change the folder paths without moving files.
 
