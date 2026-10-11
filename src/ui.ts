@@ -2,13 +2,17 @@ import { App, Modal, Notice, Setting, SuggestModal, TFile } from 'obsidian';
 import { loadSchemas, type NodeSchema, type Field } from './schema';
 import { NodeIndex, type NodeHit } from './index';
 import { createNode, resolved, titleError, validateValues, type Values } from './create';
+import { HIGHLIGHT_EMOJI } from './highlight';
 
 export class TypePicker extends SuggestModal<NodeSchema> {
   constructor(app: App, private schemas: NodeSchema[], private choose: (schema: NodeSchema) => void) {
     super(app); this.setPlaceholder('Choose a node type');
   }
   getSuggestions(query: string): NodeSchema[] { return this.schemas.filter(schema => `${schema.label} ${schema.nodeType}`.toLowerCase().includes(query.toLowerCase())); }
-  renderSuggestion(schema: NodeSchema, el: HTMLElement): void { el.createEl('div', { text: schema.label }); el.createEl('small', { text: schema.nodeType }); }
+  renderSuggestion(schema: NodeSchema, el: HTMLElement): void {
+    el.createEl('div', { text: `${schema.highlight ? `${HIGHLIGHT_EMOJI[schema.highlight]} ` : ''}${schema.label}` });
+    el.createEl('small', { text: schema.nodeType });
+  }
   onChooseSuggestion(schema: NodeSchema): void { this.choose(schema); }
 }
 
@@ -33,7 +37,7 @@ export class CreateNodeModal extends Modal {
   }
   onOpen(): void {
     this.contentEl.empty();
-    this.contentEl.createEl('h2', { text: `Create ${this.schema.label}` });
+    this.contentEl.createEl('h2', { text: `Create ${this.schema.highlight ? `${HIGHLIGHT_EMOJI[this.schema.highlight]} ` : ''}${this.schema.label}` });
     if (this.selectedBody) this.contentEl.createEl('p', { text: 'Selected text will be copied into the new node before the source becomes a link.' });
     new Setting(this.contentEl).setName('Name').setDesc(`File in ${this.folder}/`).addText(input => {
       input.setValue(this.title).setPlaceholder('Node name').onChange(value => { this.title = value; }); input.inputEl.focus();
