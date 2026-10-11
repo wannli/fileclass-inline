@@ -1,5 +1,6 @@
 import { App, SuggestModal } from 'obsidian';
 import { NodeIndex, type NodeHit } from './index';
+import { renderNodeSuggestion } from './suggestion-row';
 
 export type LinkChoice = { kind: 'existing'; hit: NodeHit } | { kind: 'create'; title: string };
 /** Same ranking as inline completion. No automatic link/creation on fuzzy matches. */
@@ -20,8 +21,7 @@ export class LinkPicker extends SuggestModal<LinkChoice> {
   }
   renderSuggestion(choice: LinkChoice, el: HTMLElement): void {
     if (choice.kind === 'create') { el.createEl('div', { text: `Create “${choice.title}”…` }); return; }
-    el.createEl('div', { text: choice.hit.label });
-    el.createEl('small', { text: `${choice.hit.entry.type} · ${choice.hit.entry.file.path}` });
+    renderNodeSuggestion(choice.hit, el);
   }
   onChooseSuggestion(choice: LinkChoice): void { this.choose(choice); }
 }

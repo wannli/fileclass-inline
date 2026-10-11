@@ -8,6 +8,7 @@ import { selectedAtExtension } from './selection-at';
 import { planSelection } from './selected-text';
 import { atTrigger } from './trigger';
 import { DEFAULT_SETTINGS, NodesSettingsTab, validateSettings, type NodesSettings } from './settings';
+import { renderNodeSuggestion } from './suggestion-row';
 
 type InlineChoice = { kind: 'existing'; hit: NodeHit } | { kind: 'create'; title: string };
 
@@ -23,8 +24,7 @@ class AtSuggest extends EditorSuggest<InlineChoice> {
   }
   renderSuggestion(choice: InlineChoice, el: HTMLElement): void {
     if (choice.kind === 'create') { el.createEl('div', { text: `Create “${choice.title}”…` }); return; }
-    el.createEl('div', { text: choice.hit.label });
-    el.createEl('small', { text: `${choice.hit.entry.type} · ${choice.hit.entry.file.path}` });
+    renderNodeSuggestion(choice.hit, el);
   }
   selectSuggestion(choice: InlineChoice): void {
     const context = this.context;
