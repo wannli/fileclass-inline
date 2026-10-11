@@ -15,10 +15,13 @@ export function capture(editor: Editor, file: TFile, from: EditorPosition, to: E
   return { editor, file, path: file.path, from: start, to: end,
     source: editor.getRange(start, end), snapshot: editor.getValue() };
 }
-export function insertLink(app: App, origin: Origin, target: TFile, label: string): boolean {
+export function isOriginCurrent(app: App, origin: Origin): boolean {
   const active = app.workspace.activeEditor;
-  if (active?.editor !== origin.editor || active.file !== origin.file || origin.file.path !== origin.path ||
-    origin.editor.getValue() !== origin.snapshot || origin.editor.getRange(origin.from, origin.to) !== origin.source) {
+  return active?.editor === origin.editor && active.file === origin.file && origin.file.path === origin.path &&
+    origin.editor.getValue() === origin.snapshot && origin.editor.getRange(origin.from, origin.to) === origin.source;
+}
+export function insertLink(app: App, origin: Origin, target: TFile, label: string): boolean {
+  if (!isOriginCurrent(app, origin)) {
     new Notice(`Node available at ${target.path}; source changed, so no link was inserted.`);
     return false;
   }
