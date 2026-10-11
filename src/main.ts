@@ -11,8 +11,8 @@ type InlineChoice = { kind: 'existing'; hit: NodeHit } | { kind: 'create'; title
 
 class AtSuggest extends EditorSuggest<InlineChoice> {
   constructor(app: NodesPlugin['app'], private plugin: NodesPlugin) { super(app); this.limit = 21; }
-  onTrigger(cursor: EditorPosition, editor: Editor, _file: TFile | null): EditorSuggestTriggerInfo | null {
-    return atTrigger(editor, cursor, this.plugin.settings.trigger);
+  onTrigger(cursor: EditorPosition, editor: Editor, file: TFile | null): EditorSuggestTriggerInfo | null {
+    return file ? atTrigger(editor, cursor, this.plugin.settings.trigger) : null;
   }
   getSuggestions(context: EditorSuggestContext): InlineChoice[] {
     const items: InlineChoice[] = this.plugin.index.search(context.query, 20).map(hit => ({ kind: 'existing', hit }));
