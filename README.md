@@ -38,6 +38,32 @@ properties:
 ## Notes
 ```
 
+To link tasks to existing projects and people, add `Schemas/task.md`:
+
+```markdown
+---
+nodeSchema: 1
+nodeType: task
+label: Task
+highlight: orange
+properties:
+  project:
+    kind: link
+    targetType: project
+    requiredOnCreate: true
+  assignee:
+    kind: link
+    targetType: person
+  status:
+    kind: select
+    options: [todo, in-progress, done]
+    default: todo
+---
+# {{title}}
+```
+
+Each task needs a project; the assignee can be left empty. The two link pickers only offer existing nodes of the matching type, and ordinary Obsidian backlinks show the relationship on the project and person notes.
+
 - **Nodes: Create node** picks a schema, prompts for a filename and required properties, then creates a normal Markdown file in `Nodes/`. Press **Ctrl+Enter** (or **⌘+Enter** on Mac) to submit the creation form. The schema's `nodeType: person` becomes `type: person`; its numeric `nodeSchema: 1` becomes `schema: 1`. Both properties are plugin-owned and cannot be redefined under `properties`. `false` and `0` count as filled values; cleared optional defaults are omitted. Cancel before submission creates nothing.
 - Type `@` plus a node name to choose an existing fuzzy match or **Create…**. Picker rows show `Ada Lovelace #person` on one line; the tag takes its schema's highlight color as a subtle background (or stays muted when no color is set), without an emoji. Choose with your keyboard or tap; links use Obsidian's current link format. The symbol can be changed in settings.
 - Select text and type `@`: the selection stays intact while Nodes searches existing names and aliases. If there are matches, choose an existing node or **Create…**; if there are none, choose a schema/type and create one. A one-line selection becomes the draft title and, when linked, keeps its original wording as the label. For a multi-line selection, Nodes prompts for a title and copies the full selection into the new node before replacing the original text with its link (it never silently discards multiple lines to link an existing note).
