@@ -31,6 +31,7 @@ properties:
   active:
     kind: checkbox
     requiredOnCreate: true
+    default: true
 ---
 # {{title}}
 
