@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Setting, SuggestModal, TFile } from 'obsidian';
-import type { NodeSchema, Field } from './schema';
+import { loadSchemas, type NodeSchema, type Field } from './schema';
 import { NodeIndex, type NodeHit } from './index';
 import { createNode, resolved, titleError, validateValues, type Values } from './create';
 
@@ -28,7 +28,7 @@ export class CreateNodeModal extends Modal {
   private title: string;
   private values: Values = Object.create(null);
   private pending = false;
-  constructor(app: App, private index: NodeIndex, private schema: NodeSchema, private created: (file: TFile) => void, title = '', private folder = 'Nodes') {
+  constructor(app: App, private index: NodeIndex, private schema: NodeSchema, private created: (file: TFile) => void, title = '', private folder = 'Nodes', private schemaFolder = 'Schemas') {
     super(app); this.title = title;
   }
   onOpen(): void {
@@ -46,7 +46,10 @@ export class CreateNodeModal extends Modal {
       if (errors.length) { errorEl.setText(errors.join('; ')); return; }
       this.pending = true; button.setDisabled(true);
       try {
-        const file = await createNode(this.app, this.index, this.schema, this.title, this.values, this.folder);
+        const fresh = await loadSchemas(this.app, this.schemaFolder);
+        const current = fresh.schemas.find(schema => schema.path === this.schema.path && schema.nodeType === this.schema.nodeType);
+        if (!current || JSON.stringify(current) !== JSON.stringify(this.schema)) throw new Error('Schema changed while the form was open; reopen the creation form');
+        const file = await createNode(this.app, this.index, current, this.title, this.values, this.folder);
         this.close(); this.created(file);
       } catch (error) { errorEl.setText(`Could not create node: ${String(error)}`); }
       finally { this.pending = false; button.setDisabled(false); }
@@ -82,13 +85,18 @@ export class CreateNodeModal extends Modal {
           input.inputEl.setAttribute('aria-label', `Choose ${name} node`);
         }
       });
-      if (field.kind === 'link') setting.addButton(button => button.setButtonText('Choose…').onClick(() => {
-        new NodePicker(this.app, this.index, hit => {
-          this.values[name] = `[[${hit.entry.file.path.slice(0, -3)}]]`;
-          // The picker closes above this form; redraw while preserving form state.
+      if (field.kind === 'link') {
+        setting.addButton(button => button.setButtonText('Choose…').onClick(() => {
+          new NodePicker(this.app, this.index, hit => {
+            this.values[name] = `[[${hit.entry.file.path.slice(0, -3)}]]`;
+            this.onOpen();
+          }, field.targetType).open();
+        }));
+        if (!field.requiredOnCreate) setting.addButton(button => button.setButtonText('Clear').onClick(() => {
+          this.values[name] = '';
           this.onOpen();
-        }, field.targetType).open();
-      }));
+        }));
+      }
     }
   }
 }
