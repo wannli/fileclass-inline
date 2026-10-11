@@ -22,6 +22,7 @@ Put a schema in `Schemas/person.md`:
 nodeSchema: 1
 nodeType: person
 label: Person
+highlight: green
 properties:
   status:
     kind: select
@@ -42,6 +43,8 @@ properties:
 - **Nodes: Create or link node** (also in the editor menu) provides the same selected-text flow. With no selection, it searches from the cursor. Add the command to Obsidian's mobile toolbar as a fallback if a software keyboard does not deliver `@` as a normal text input.
 - **Nodes: Check schemas** displays invalid YAML/schema and property-kind conflicts, with buttons to open affected files.
 - Nodes are only Markdown files under `Nodes/` with a scalar `type` property. A missing schema doesn't hide existing nodes from search. Settings can change the folder paths without moving files.
+
+Optional schema `highlight` uses Obsidian's six native colored-highlight names: `red` 🔴, `orange` 🟠, `yellow` 🟡, `green` 🟢, `blue` 🔵, `purple` 🟣. When a link is completed, Nodes writes normal Obsidian colored-highlight Markdown around it—for example, `==🟢[[Nodes/Wannes|Wannes]]==`. This stays highlighted without the plugin. A missing/invalid type schema leaves links uncolored. Changing a schema's color affects future links only; existing notes are not silently rewritten.
 
 Supported property kinds: `text`, `number`, `checkbox`, `date`, `select`, `link`, `text-list`. `requiredOnCreate` and type-appropriate `default` are optional. A link property optionally specifies `targetType` and uses a picker for an existing typed node; recursive creation within a field is not supported. Fields are flat YAML Properties; Obsidian native property types are vault-wide. Templates support literal `{{title}}`, `{{date}}` (local YYYY-MM-DD), and `{{property:fieldname}}`. No arbitrary code or external template plugin is needed. YAML-authored schemas are the permanent interface.
 
