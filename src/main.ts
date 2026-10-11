@@ -9,6 +9,7 @@ import { planSelection } from './selected-text';
 import { atTrigger } from './trigger';
 import { DEFAULT_SETTINGS, NodesSettingsTab, validateSettings, type NodesSettings } from './settings';
 import { renderNodeSuggestion } from './suggestion-row';
+import { PruneManager, type TrackedNode } from './prune';
 
 type InlineChoice = { kind: 'existing'; hit: NodeHit } | { kind: 'create'; title: string };
 
@@ -38,20 +39,33 @@ class AtSuggest extends EditorSuggest<InlineChoice> {
 
 export default class NodesPlugin extends Plugin {
   index!: NodeIndex;
+  private prune!: PruneManager;
+  private saves: Promise<void> = Promise.resolve();
   settings: NodesSettings = { ...DEFAULT_SETTINGS };
   override async onload(): Promise<void> {
-    const stored = await this.loadData() as Partial<NodesSettings> | null;
+    const stored = await this.loadData() as (Partial<NodesSettings> & { createdNodes?: Record<string, TrackedNode> }) | null;
     const candidate = { ...DEFAULT_SETTINGS, ...stored };
     if (!validateSettings(candidate)) this.settings = candidate;
     this.index = new NodeIndex(this.app, this.settings.nodesFolder);
+    this.prune = new PruneManager(this.app, () => this.settings, () => this.persist());
+    this.prune.restore(stored?.createdNodes);
     this.addSettingTab(new NodesSettingsTab(this.app, this));
-    this.app.workspace.onLayoutReady(() => this.index.rebuild());
+    this.app.workspace.onLayoutReady(() => { this.index.rebuild(); this.prune.onResolved(); });
+    this.registerEvent(this.app.metadataCache.on('resolved', () => this.prune.onResolved()));
+    this.registerEvent(this.app.workspace.on('layout-change', () => this.prune.onResolved()));
+    this.register(() => this.prune.dispose());
     const inNodes = (path: string): boolean => path.startsWith(`${this.settings.nodesFolder}/`);
     this.registerEvent(this.app.metadataCache.on('changed', file => { if (inNodes(file.path)) this.index.rebuild(); }));
     this.registerEvent(this.app.vault.on('create', file => { if (inNodes(file.path)) this.index.rebuild(); }));
-    this.registerEvent(this.app.vault.on('delete', file => { if (inNodes(file.path)) this.index.rebuild(); }));
+    this.registerEvent(this.app.vault.on('delete', file => {
+      if (inNodes(file.path)) this.index.rebuild();
+      this.prune.forget(file.path);
+      this.prune.forgetBySource(file.path);
+    }));
     this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
       if (inNodes(file.path) || inNodes(oldPath)) this.index.rebuild();
+      this.prune.forget(oldPath);
+      this.prune.forgetBySource(oldPath);
     }));
     this.registerEditorExtension(selectedAtExtension(this.app, () => this.settings.trigger, origin => this.startSelectedOrigin(origin)));
     this.registerEditorSuggest(new AtSuggest(this.app, this));
@@ -65,10 +79,15 @@ export default class NodesPlugin extends Plugin {
     }));
     this.addCommand({ id: 'check-schemas', name: 'Check schemas', callback: () => { void this.showDiagnostics(); } });
   }
+  private persist(): Promise<void> {
+    this.saves = this.saves.catch(() => {}).then(() => this.saveData({ ...this.settings, createdNodes: this.prune.entries() }));
+    return this.saves;
+  }
   async saveSettings(settings: NodesSettings): Promise<void> {
     this.settings = { ...settings };
-    await this.saveData(this.settings);
+    await this.persist();
     this.index.setFolder(settings.nodesFolder);
+    this.prune.onResolved();
   }
   private startLink(editor: Editor, file: TFile): void {
     this.startSelectedOrigin(capture(editor, file, editor.getCursor('from'), editor.getCursor('to')));
@@ -107,8 +126,10 @@ export default class NodesPlugin extends Plugin {
     if (diagnostics.length) new Notice(`Nodes: ${diagnostics.length} schema issue(s). Run “Check schemas” for details.`);
     if (!schemas.length) { new Notice(`No valid node schemas in ${this.settings.schemasFolder}/. Run “Check schemas”.`); return; }
     new TypePicker(this.app, schemas, schema => {
-      new CreateNodeModal(this.app, this.index, schema, file => {
-        if (origin) insertLink(this.app, origin, file, label ?? file.basename, schema.highlight);
+      new CreateNodeModal(this.app, this.index, schema, (file, content, inferable) => {
+        if (origin) insertLink(this.app, origin, file, label ?? file.basename, schema.highlight, link => {
+          if (inferable) this.prune.track(file, origin.path, link, content, schema);
+        });
         else void this.app.workspace.getLeaf(true).openFile(file).catch(error => new Notice(`Created ${file.path}; could not open it: ${String(error)}`));
       }, seed, this.settings.nodesFolder, this.settings.schemasFolder, selectedBody).open();
     }).open();
