@@ -3,7 +3,7 @@
   "name": "Nodes",
   "version": "0.1.0",
   "minAppVersion": "1.5.0",
-  "description": "A starter plugin for experimenting with nodes in Obsidian.",
+  "description": "Create typed Markdown nodes from YAML schemas and link them with fuzzy @ suggestions.",
   "author": "Wannes Lint",
   "isDesktopOnly": false
 }

@@ -1,6 +1,6 @@
 # Nodes — Obsidian plugin development
 
-A minimal TypeScript plugin and isolated local development vault. The example plugin adds a **Nodes: Say hello** command; replace `src/main.ts` with your plugin code.
+Typed Markdown nodes in Obsidian, with YAML schemas, validated creation, and fuzzy linking of names and aliases. Includes an isolated local development vault.
 
 ## Setup
 
@@ -9,9 +9,44 @@ npm install
 npm run dev
 ```
 
-The dev command sets up `dummy-vault/`, downloads and enables [Hot Reload](https://github.com/pjeby/hot-reload) (pinned at 0.3.1), and watches `src/`. It writes `main.js` and `manifest.json` directly to `dummy-vault/.obsidian/plugins/obsidian-nodes/`. Open **this folder's `dummy-vault/`** as a vault in Obsidian (not the repository root). If Obsidian prompts about community plugins, allow them in this disposable vault. Run **Nodes: Say hello** from the command palette to confirm it loaded.
+The dev command sets up `dummy-vault/`, downloads and enables [Hot Reload](https://github.com/pjeby/hot-reload) (pinned at 0.3.1), and watches `src/`. It writes `main.js` and `manifest.json` directly to `dummy-vault/.obsidian/plugins/obsidian-nodes/`. Open **this folder's `dummy-vault/`** as a vault in Obsidian (not the repository root). If Obsidian prompts about community plugins, allow them in this disposable vault. Create a schema in `Schemas/` (example below), then run **Nodes: Create node**.
 
 Keep `npm run dev` running while editing. Hot Reload watches the `.hotreload` marker and reloads the plugin after a successful rebuild. If you change `manifest.json`, restart `npm run dev` to sync it. Use `npm run typecheck` for TypeScript checks.
+
+## Using Nodes
+
+Put a schema in `Schemas/person.md`:
+
+```markdown
+---
+nodeSchema: 1
+nodeType: person
+label: Person
+properties:
+  status:
+    kind: select
+    options: [active, inactive]
+    default: active
+  active:
+    kind: checkbox
+    requiredOnCreate: true
+---
+# {{title}}
+
+## Notes
+```
+
+- **Nodes: Create node** picks a schema, prompts for a filename and required properties, then creates a normal Markdown file with `type: person` in `Nodes/`. `false` and `0` count as filled values; cleared optional defaults are omitted. Cancel before submission creates nothing.
+- Type `@` plus a node name to choose an existing fuzzy match or **Create…**. Choose with your keyboard or tap; links use Obsidian's current link format. The symbol can be changed in settings.
+- Select text and use **Nodes: Create or link node** (also in the editor menu). It searches names and aliases and preserves the selected wording as the link label. The same command with no selection searches from the cursor. Add the command to Obsidian's mobile toolbar if desired.
+- **Nodes: Check schemas** displays invalid YAML/schema and property-kind conflicts, with buttons to open affected files.
+- Nodes are only Markdown files under `Nodes/` with a scalar `type` property. A missing schema doesn't hide existing nodes from search. Settings can change the folder paths without moving files.
+
+Supported property kinds: `text`, `number`, `checkbox`, `date`, `select`, `link`, `text-list`. `requiredOnCreate` and type-appropriate `default` are optional. A link property optionally specifies `targetType` and uses a picker for an existing typed node; recursive creation within a field is not supported. Fields are flat YAML Properties; Obsidian native property types are vault-wide. Templates support literal `{{title}}`, `{{date}}` (local YYYY-MM-DD), and `{{property:fieldname}}`. No arbitrary code or external template plugin is needed. YAML-authored schemas are the permanent interface.
+
+Filename collisions never overwrite. If the source editor changes while a creation form is open, the created node is kept but no unsafe link insertion occurs. Existing properties aren't silently migrated when a schema changes. Fuzzy matching uses character-sequence matching, not AI/semantic search.
+
+**Verification:** Automated checks validate metadata, types, focused core behavior, and build assets. Native desktop/mobile use still needs an in-app smoke check; `isDesktopOnly: false` is not evidence of real-device verification.
 
 ## Files
 
