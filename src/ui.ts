@@ -1,8 +1,8 @@
 import { App, type ButtonComponent, Modal, Notice, Setting, SuggestModal, TFile } from 'obsidian';
 import { loadSchemas, type NodeSchema, type Field } from './schema';
-import { NodeIndex, type NodeHit } from './index';
+import { NodeIndex } from './index';
 import { createNode, inferableOnly, resolved, titleError, validateValues, type Values } from './create';
-import { renderNodeSuggestion } from './suggestion-row';
+import { shortestWikiLink } from './links';
 
 export class TypePicker extends SuggestModal<NodeSchema> {
   constructor(app: App, private schemas: NodeSchema[], private choose: (schema: NodeSchema) => void) {
@@ -11,15 +11,6 @@ export class TypePicker extends SuggestModal<NodeSchema> {
   getSuggestions(query: string): NodeSchema[] { return this.schemas.filter(schema => `${schema.label} ${schema.nodeType}`.toLowerCase().includes(query.toLowerCase())); }
   renderSuggestion(schema: NodeSchema, el: HTMLElement): void { el.setText(schema.label); }
   onChooseSuggestion(schema: NodeSchema): void { this.choose(schema); }
-}
-
-export class NodePicker extends SuggestModal<NodeHit> {
-  constructor(app: App, private index: NodeIndex, private choose: (hit: NodeHit) => void, private type?: string, query = '') {
-    super(app); this.setPlaceholder('Find a node'); this.inputEl.value = query;
-  }
-  getSuggestions(query: string): NodeHit[] { return this.index.search(query, 20, this.type); }
-  renderSuggestion(hit: NodeHit, el: HTMLElement): void { renderNodeSuggestion(hit, el); }
-  onChooseSuggestion(hit: NodeHit): void { this.choose(hit); }
 }
 
 export class CreateNodeModal extends Modal {
@@ -84,31 +75,35 @@ export class CreateNodeModal extends Modal {
         dropdown.setValue(typeof current === 'string' ? current : '');
         dropdown.onChange(value => { this.values[name] = value; });
       });
+    } else if (field.kind === 'link') {
+      const entries = this.index.all().filter(entry => !field.targetType || entry.type === field.targetType)
+        .sort((a, b) => a.file.basename.localeCompare(b.file.basename) || a.file.path.localeCompare(b.file.path));
+      const linkpath = typeof current === 'string' && current.startsWith('[[') && current.endsWith(']]')
+        ? current.slice(2, -2).split('|')[0] : '';
+      const target = linkpath ? this.app.metadataCache.getFirstLinkpathDest(linkpath, `${this.folder}/${this.title}.md`) : null;
+      const selected = entries.some(entry => entry.file.path === target?.path) ? target!.path : '';
+      const counts = new Map<string, number>();
+      for (const entry of entries) counts.set(entry.file.basename, (counts.get(entry.file.basename) ?? 0) + 1);
+      setting.addDropdown(dropdown => {
+        dropdown.addOption('', field.requiredOnCreate ? `Choose ${name}…` : 'Not set');
+        for (const entry of entries) {
+          const parent = entry.file.parent?.path ?? '';
+          const relativeFolder = parent.startsWith(`${this.folder}/`) ? parent.slice(this.folder.length + 1) : parent;
+          dropdown.addOption(entry.file.path, counts.get(entry.file.basename)! > 1
+            ? `${entry.file.basename} (${relativeFolder || 'root'})` : entry.file.basename);
+        }
+        dropdown.setValue(selected).onChange(path => {
+          const file = entries.find(entry => entry.file.path === path)?.file;
+          this.values[name] = file ? shortestWikiLink(this.app, file, `${this.folder}/${this.title}.md`) : '';
+        });
+      });
     } else if (field.kind === 'text-list') {
       setting.addTextArea(input => input.setPlaceholder('One per line').setValue(Array.isArray(current) ? current.join('\n') : '')
         .onChange(value => { this.values[name] = value.split('\n').map(line => line.trim()).filter(Boolean); }));
-    } else {
-      setting.addText(input => {
-        input.setValue(current === undefined ? '' : String(current)).setPlaceholder(field.kind).onChange(value => {
-          this.values[name] = !value.trim() ? '' : field.kind === 'number' ? Number(value) : value;
-        });
-        if (field.kind === 'link') {
-          input.inputEl.readOnly = true;
-          input.inputEl.setAttribute('aria-label', `Choose ${name} node`);
-        }
+    } else setting.addText(input => {
+      input.setValue(current === undefined ? '' : String(current)).setPlaceholder(field.kind).onChange(value => {
+        this.values[name] = !value.trim() ? '' : field.kind === 'number' ? Number(value) : value;
       });
-      if (field.kind === 'link') {
-        setting.addButton(button => button.setButtonText('Choose…').onClick(() => {
-          new NodePicker(this.app, this.index, hit => {
-            this.values[name] = `[[${hit.entry.file.path.slice(0, -3)}]]`;
-            this.onOpen();
-          }, field.targetType).open();
-        }));
-        if (!field.requiredOnCreate) setting.addButton(button => button.setButtonText('Clear').onClick(() => {
-          this.values[name] = '';
-          this.onOpen();
-        }));
-      }
-    }
+    });
   }
 }

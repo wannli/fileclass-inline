@@ -1,5 +1,6 @@
 import { App, Editor, type EditorPosition, Notice, TFile } from 'obsidian';
 import { highlightLink, type HighlightColor } from './highlight';
+import { shortestWikiLink } from './links';
 
 /** Reject stale asynchronous insertions rather than guessing where the text moved. */
 export interface Origin {
@@ -30,7 +31,7 @@ export function insertLink(app: App, origin: Origin, target: TFile, label: strin
     new Notice('Cannot use multiline text or link delimiters as a link label');
     return false;
   }
-  const link = app.fileManager.generateMarkdownLink(target, origin.path, undefined, label);
+  const link = shortestWikiLink(app, target, origin.path, label);
   const replacement = highlightLink(link, highlight);
   origin.editor.replaceRange(replacement, origin.from, origin.to);
   // Do not leave the original selection (or the new highlight) selected.
