@@ -10,6 +10,7 @@ import { atTrigger } from './trigger';
 import { DEFAULT_SETTINGS, NodesSettingsTab, validateSettings, type NodesSettings } from './settings';
 import { renderNodeSuggestion } from './suggestion-row';
 import { PruneManager, type TrackedNode } from './prune';
+import type { HighlightColor } from './highlight';
 
 type InlineChoice = { kind: 'existing'; hit: NodeHit } | { kind: 'create'; title: string };
 
@@ -25,7 +26,7 @@ class AtSuggest extends EditorSuggest<InlineChoice> {
   }
   renderSuggestion(choice: InlineChoice, el: HTMLElement): void {
     if (choice.kind === 'create') { el.createEl('div', { text: `Create “${choice.title}”…` }); return; }
-    renderNodeSuggestion(choice.hit, el);
+    renderNodeSuggestion(choice.hit, el, this.plugin.colorForType(choice.hit.entry.type));
   }
   selectSuggestion(choice: InlineChoice): void {
     const context = this.context;
@@ -41,29 +42,41 @@ export default class NodesPlugin extends Plugin {
   index!: NodeIndex;
   private prune!: PruneManager;
   private saves: Promise<void> = Promise.resolve();
+  private typeColors = new Map<string, HighlightColor>();
+  private colorRefresh = 0;
   settings: NodesSettings = { ...DEFAULT_SETTINGS };
   override async onload(): Promise<void> {
     const stored = await this.loadData() as (Partial<NodesSettings> & { createdNodes?: Record<string, TrackedNode> }) | null;
     const candidate = { ...DEFAULT_SETTINGS, ...stored };
     if (!validateSettings(candidate)) this.settings = candidate;
     this.index = new NodeIndex(this.app, this.settings.nodesFolder);
+    await this.refreshSchemaColors();
     this.prune = new PruneManager(this.app, () => this.settings, () => this.persist());
     this.prune.restore(stored?.createdNodes);
     this.addSettingTab(new NodesSettingsTab(this.app, this));
-    this.app.workspace.onLayoutReady(() => { this.index.rebuild(); this.prune.onResolved(); });
+    this.app.workspace.onLayoutReady(() => { this.index.rebuild(); this.prune.onResolved(); void this.refreshSchemaColors(); });
     this.registerEvent(this.app.metadataCache.on('resolved', () => this.prune.onResolved()));
     this.registerEvent(this.app.workspace.on('layout-change', () => this.prune.onResolved()));
     this.register(() => this.prune.dispose());
     const inNodes = (path: string): boolean => path.startsWith(`${this.settings.nodesFolder}/`);
-    this.registerEvent(this.app.metadataCache.on('changed', file => { if (inNodes(file.path)) this.index.rebuild(); }));
-    this.registerEvent(this.app.vault.on('create', file => { if (inNodes(file.path)) this.index.rebuild(); }));
+    const inSchemas = (path: string): boolean => path.startsWith(`${this.settings.schemasFolder}/`);
+    this.registerEvent(this.app.metadataCache.on('changed', file => {
+      if (inNodes(file.path)) this.index.rebuild();
+      if (inSchemas(file.path)) void this.refreshSchemaColors();
+    }));
+    this.registerEvent(this.app.vault.on('create', file => {
+      if (inNodes(file.path)) this.index.rebuild();
+      if (inSchemas(file.path)) void this.refreshSchemaColors();
+    }));
     this.registerEvent(this.app.vault.on('delete', file => {
       if (inNodes(file.path)) this.index.rebuild();
+      if (inSchemas(file.path)) void this.refreshSchemaColors();
       this.prune.forget(file.path);
       this.prune.forgetBySource(file.path);
     }));
     this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
       if (inNodes(file.path) || inNodes(oldPath)) this.index.rebuild();
+      if (inSchemas(file.path) || inSchemas(oldPath)) void this.refreshSchemaColors();
       this.prune.forget(oldPath);
       this.prune.forgetBySource(oldPath);
     }));
@@ -79,6 +92,13 @@ export default class NodesPlugin extends Plugin {
     }));
     this.addCommand({ id: 'check-schemas', name: 'Check schemas', callback: () => { void this.showDiagnostics(); } });
   }
+  colorForType(type: string): HighlightColor | undefined { return this.typeColors.get(type); }
+  private async refreshSchemaColors(): Promise<void> {
+    const request = ++this.colorRefresh;
+    const { schemas } = await loadSchemas(this.app, this.settings.schemasFolder);
+    if (request === this.colorRefresh) this.typeColors = new Map(schemas.flatMap(schema =>
+      schema.highlight ? [[schema.nodeType, schema.highlight] as const] : []));
+  }
   private persist(): Promise<void> {
     this.saves = this.saves.catch(() => {}).then(() => this.saveData({ ...this.settings, createdNodes: this.prune.entries() }));
     return this.saves;
@@ -87,6 +107,7 @@ export default class NodesPlugin extends Plugin {
     this.settings = { ...settings };
     await this.persist();
     this.index.setFolder(settings.nodesFolder);
+    await this.refreshSchemaColors();
     this.prune.onResolved();
   }
   private startLink(editor: Editor, file: TFile): void {
@@ -109,7 +130,7 @@ export default class NodesPlugin extends Plugin {
     new LinkPicker(this.app, this.index, (choice: LinkChoice) => {
       if (choice.kind === 'existing') void this.linkExisting(origin, choice.hit, plan.label || choice.hit.label);
       else void this.startCreate(choice.title, origin, plan.label);
-    }, plan.query).open();
+    }, plan.query, type => this.colorForType(type)).open();
   }
   async linkExisting(origin: Origin, hit: NodeHit, label: string): Promise<void> {
     if (this.app.vault.getAbstractFileByPath(hit.entry.file.path) !== hit.entry.file) {
