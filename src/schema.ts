@@ -80,5 +80,13 @@ export async function loadSchemas(app: App, folder = 'Schemas'): Promise<Catalog
   const duplicates = new Map<string, string[]>();
   for (const schema of schemas) duplicates.set(schema.nodeType, [...(duplicates.get(schema.nodeType) ?? []), schema.path]);
   for (const [type, paths] of duplicates) if (paths.length > 1) for (const path of paths) diagnostics.push({ path, message: `duplicate type ${type}: ${paths.join(', ')}` });
-  return { schemas: schemas.filter(schema => duplicates.get(schema.nodeType)?.length === 1).sort((a, b) => a.label.localeCompare(b.label)), diagnostics };
+  const unique = schemas.filter(schema => duplicates.get(schema.nodeType)?.length === 1);
+  const propertyKinds = new Map<string, { kind: string; path: string }>();
+  for (const schema of unique) for (const [name, field] of Object.entries(schema.properties)) {
+    const nativeKind = field.kind === 'select' || field.kind === 'link' ? 'text' : field.kind === 'text-list' ? 'list' : field.kind;
+    const previous = propertyKinds.get(name);
+    if (previous && previous.kind !== nativeKind) diagnostics.push({ path: schema.path, message: `property ${name}: ${nativeKind} conflicts with ${previous.kind} in ${previous.path} (Obsidian property types are vault-wide)` });
+    else if (!previous) propertyKinds.set(name, { kind: nativeKind, path: schema.path });
+  }
+  return { schemas: unique.sort((a, b) => a.label.localeCompare(b.label)), diagnostics };
 }
