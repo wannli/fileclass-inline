@@ -1,0 +1,21 @@
+{
+  "name": "obsidian-nodes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup:vault": "node scripts/setup-dev-vault.mjs",
+    "dev": "node scripts/build.mjs --watch",
+    "build": "node scripts/build.mjs --release",
+    "typecheck": "tsc --noEmit",
+    "validate:metadata": "node scripts/validate-metadata.mjs",
+    "test": "node --test scripts/*.test.mjs",
+    "check": "npm run validate:metadata && npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "^1.8.0",
+    "typescript": "^5.0.0"
+  }
+}

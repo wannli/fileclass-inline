@@ -1,0 +1,7 @@
+/node_modules/
+/dummy-vault/
+/dist/
+/docs/
+/main.js
+*.tsbuildinfo
+.DS_Store

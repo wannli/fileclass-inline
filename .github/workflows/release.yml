@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build and verify
+        run: |
+          npm ci
+          npm run check
+
+      - name: Prepare release
+        id: release
+        uses: googleapis/release-please-action@v5
+
+      - name: Upload and publish Obsidian release
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+          BUILT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('dist/manifest.json')).version")
+          test "$VERSION" = "$TAG"
+          test "$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha)" = "$BUILT_SHA"
+          test -s dist/main.js
+          test -s dist/manifest.json
+          test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = true
+          BODY=$(gh release view "$TAG" --json body --jq .body)
+          test -n "${BODY//[[:space:]]/}"
+
+          files=(dist/main.js dist/manifest.json)
+          if [[ -f dist/styles.css ]]; then
+            files+=(dist/styles.css)
+          fi
+
+          gh release upload "$TAG" "${files[@]}"
+          gh release edit "$TAG" --draft=false
