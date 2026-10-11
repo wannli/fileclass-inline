@@ -28,12 +28,13 @@ export class CreateNodeModal extends Modal {
   private title: string;
   private values: Values = Object.create(null);
   private pending = false;
-  constructor(app: App, private index: NodeIndex, private schema: NodeSchema, private created: (file: TFile) => void, title = '', private folder = 'Nodes', private schemaFolder = 'Schemas') {
+  constructor(app: App, private index: NodeIndex, private schema: NodeSchema, private created: (file: TFile) => void, title = '', private folder = 'Nodes', private schemaFolder = 'Schemas', private selectedBody?: string) {
     super(app); this.title = title;
   }
   onOpen(): void {
     this.contentEl.empty();
     this.contentEl.createEl('h2', { text: `Create ${this.schema.label}` });
+    if (this.selectedBody) this.contentEl.createEl('p', { text: 'Selected text will be copied into the new node before the source becomes a link.' });
     new Setting(this.contentEl).setName('Name').setDesc(`File in ${this.folder}/`).addText(input => {
       input.setValue(this.title).setPlaceholder('Node name').onChange(value => { this.title = value; }); input.inputEl.focus();
     });
@@ -49,7 +50,7 @@ export class CreateNodeModal extends Modal {
         const fresh = await loadSchemas(this.app, this.schemaFolder);
         const current = fresh.schemas.find(schema => schema.path === this.schema.path && schema.nodeType === this.schema.nodeType);
         if (!current || JSON.stringify(current) !== JSON.stringify(this.schema)) throw new Error('Schema changed while the form was open; reopen the creation form');
-        const file = await createNode(this.app, this.index, current, this.title, this.values, this.folder);
+        const file = await createNode(this.app, this.index, current, this.title, this.values, this.folder, this.selectedBody);
         this.close(); this.created(file);
       } catch (error) { errorEl.setText(`Could not create node: ${String(error)}`); }
       finally { this.pending = false; button.setDisabled(false); }

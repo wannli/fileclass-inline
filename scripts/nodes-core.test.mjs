@@ -18,6 +18,7 @@ test('required boolean accepts false; clearing default does not restore it', () 
   assert.deepEqual(validateValues(schema, {}), ['active: required']);
   assert.deepEqual(validateValues(schema, { active: false }), []);
   assert.doesNotMatch(renderNode(schema, 'Ada', { active: false, score: '' }, '2026-10-11'), /score:/);
+  assert.match(renderNode(schema, 'Ada', { active: false }, '2026-10-11', 'Idea\nsecond line'), /# Ada\n\nIdea\nsecond line$/);
 });
 
 test('invalid schema and filenames cannot write a draft', () => {

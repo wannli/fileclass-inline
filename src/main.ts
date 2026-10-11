@@ -3,7 +3,9 @@ import { loadSchemas } from './schema';
 import { NodeIndex, type NodeHit } from './index';
 import { CreateNodeModal, TypePicker } from './ui';
 import { LinkPicker, type LinkChoice } from './link-picker';
-import { capture, insertLink, type Origin } from './references';
+import { capture, insertLink, isOriginCurrent, type Origin } from './references';
+import { selectedAtExtension } from './selection-at';
+import { planSelection } from './selected-text';
 import { atTrigger } from './trigger';
 import { DEFAULT_SETTINGS, NodesSettingsTab, validateSettings, type NodesSettings } from './settings';
 
@@ -51,6 +53,7 @@ export default class NodesPlugin extends Plugin {
     this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
       if (inNodes(file.path) || inNodes(oldPath)) this.index.rebuild();
     }));
+    this.registerEditorExtension(selectedAtExtension(this.app, () => this.settings.trigger, origin => this.startSelectedOrigin(origin)));
     this.registerEditorSuggest(new AtSuggest(this.app, this));
     this.addCommand({ id: 'create-node', name: 'Create node', callback: () => { void this.startCreate(''); } });
     this.addCommand({ id: 'create-or-link-node', name: 'Create or link node', editorCallback: (editor, view) => {
@@ -68,15 +71,28 @@ export default class NodesPlugin extends Plugin {
     this.index.setFolder(settings.nodesFolder);
   }
   private startLink(editor: Editor, file: TFile): void {
-    const from = editor.getCursor('from'), to = editor.getCursor('to');
-    const origin = capture(editor, file, from, to);
-    if (/\r|\n|[\[\]|]/.test(origin.source)) { new Notice('Select a single line without link delimiters'); return; }
-    new LinkPicker(this.app, this.index, (choice: LinkChoice) => {
-      if (choice.kind === 'existing') insertLink(this.app, origin, choice.hit.entry.file, origin.source || choice.hit.label);
-      else void this.startCreate(choice.title, origin, origin.source || undefined);
-    }, origin.source).open();
+    this.startSelectedOrigin(capture(editor, file, editor.getCursor('from'), editor.getCursor('to')));
   }
-  async startCreate(seed: string, origin?: Origin, label?: string): Promise<void> {
+  private startSelectedOrigin(origin: Origin): void {
+    if (!isOriginCurrent(this.app, origin)) return;
+    if (origin.source && !origin.source.trim()) { new Notice('Select text with a name to create or link a node'); return; }
+    const plan = planSelection(origin.source);
+    if (plan.body) {
+      // Linking to an existing note would discard this multi-line content. Copy it into a new node instead.
+      void this.startCreate(plan.query, origin, undefined, plan.body);
+      return;
+    }
+    if (plan.label && /[\[\]|]/.test(plan.label)) { new Notice('Selection contains link delimiters; choose simpler text'); return; }
+    if (plan.query && !this.index.search(plan.query).length) {
+      void this.startCreate(plan.query, origin, plan.label);
+      return;
+    }
+    new LinkPicker(this.app, this.index, (choice: LinkChoice) => {
+      if (choice.kind === 'existing') insertLink(this.app, origin, choice.hit.entry.file, plan.label || choice.hit.label);
+      else void this.startCreate(choice.title, origin, plan.label);
+    }, plan.query).open();
+  }
+  async startCreate(seed: string, origin?: Origin, label?: string, selectedBody?: string): Promise<void> {
     const { schemas, diagnostics } = await loadSchemas(this.app, this.settings.schemasFolder);
     if (diagnostics.length) new Notice(`Nodes: ${diagnostics.length} schema issue(s). Run “Check schemas” for details.`);
     if (!schemas.length) { new Notice(`No valid node schemas in ${this.settings.schemasFolder}/. Run “Check schemas”.`); return; }
@@ -84,7 +100,7 @@ export default class NodesPlugin extends Plugin {
       new CreateNodeModal(this.app, this.index, schema, file => {
         if (origin) insertLink(this.app, origin, file, label ?? file.basename);
         else void this.app.workspace.getLeaf(true).openFile(file).catch(error => new Notice(`Created ${file.path}; could not open it: ${String(error)}`));
-      }, seed, this.settings.nodesFolder, this.settings.schemasFolder).open();
+      }, seed, this.settings.nodesFolder, this.settings.schemasFolder, selectedBody).open();
     }).open();
   }
   private async showDiagnostics(): Promise<void> {

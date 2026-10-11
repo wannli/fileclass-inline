@@ -23,7 +23,7 @@ export function validateValues(schema: NodeSchema, values: Values): string[] {
   return errors;
 }
 
-export function renderNode(schema: NodeSchema, title: string, values: Values, date: string): string {
+export function renderNode(schema: NodeSchema, title: string, values: Values, date: string, selectedBody?: string): string {
   const errors = [titleError(title), ...validateValues(schema, values)].filter(Boolean);
   if (errors.length) throw new Error(errors.join('; '));
   const props: Values = Object.create(null);
@@ -41,13 +41,13 @@ export function renderNode(schema: NodeSchema, title: string, values: Values, da
     }
     throw new Error(`Unknown placeholder: {{${key}}}`);
   });
-  return `---\n${stringifyYaml(props).trimEnd()}\n---\n${template}`;
+  return `---\n${stringifyYaml(props).trimEnd()}\n---\n${template}${selectedBody ? `\n\n${selectedBody}` : ''}`;
 }
 
-export async function createNode(app: App, index: NodeIndex, schema: NodeSchema, title: string, values: Values, folder = 'Nodes'): Promise<TFile> {
+export async function createNode(app: App, index: NodeIndex, schema: NodeSchema, title: string, values: Values, folder = 'Nodes', selectedBody?: string): Promise<TFile> {
   const now = new Date();
   const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
-  const content = renderNode(schema, title, values, date);
+  const content = renderNode(schema, title, values, date, selectedBody);
   const path = `${folder}/${title}.md`;
   for (const [name, field] of Object.entries(schema.properties)) {
     const value = resolved(field, values, name);
