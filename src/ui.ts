@@ -65,8 +65,12 @@ export class CreateNodeModal extends Modal {
         if (!final || JSON.stringify(final) !== JSON.stringify(current)) throw new Error('Schema changed while the form was open; reopen the creation form');
         this.index.rebuild();
       };
-      const { file, content } = await createNode(this.app, this.index, current, this.title, this.values, this.folder, this.selectedBody, this.isActive, beforeCommit);
-      this.created(file, content, inferableOnly(current, this.values, this.selectedBody)); this.close();
+      // Use the same immutable values for rendered bytes and cleanup eligibility,
+      // even if inputs change while the vault write is pending.
+      const values: Values = structuredClone(this.values);
+      const inferable = inferableOnly(current, values, this.selectedBody);
+      const { file, content } = await createNode(this.app, this.index, current, this.title, values, this.folder, this.selectedBody, this.isActive, beforeCommit);
+      this.created(file, content, inferable); this.close();
     } catch (error) { errorEl.setText(`Could not create node: ${String(error)}`); }
     finally { this.pending = false; button.setDisabled(false); }
   }

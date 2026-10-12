@@ -77,3 +77,17 @@ test('abort after file write starts retains standalone file but resolves null', 
   controller.abort(); assert.equal(await pending, null);
   write.resolve(); await submitting;
 });
+test('cleanup eligibility uses rendered values, not edits made during the file write', async () => {
+  const f = fixture(), write = deferred();
+  let bytes, inferable;
+  f.app.vault.create = async (path, content) => { bytes = content; await write.promise; return { path, basename: 'Ada' }; };
+  const pending = f.api.createNode({ type: 'person', suggestedTitle: 'Ada' }); await tick();
+  const dialog = f.app.dialog, created = dialog.created;
+  dialog.created = (file, content, eligible) => { inferable = eligible; created(file, content, eligible); };
+  dialog.values.ref = '[[Authored]]';
+  f.prepare(); const submitting = dialog.submit(); f.folder.resolve(); await tick();
+  assert.match(bytes, /Authored/);
+  dialog.values.ref = '[[Target]]';
+  write.resolve(); await submitting; await pending;
+  assert.equal(inferable, false);
+});

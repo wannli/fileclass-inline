@@ -55,11 +55,11 @@ export default class NodesPlugin extends Plugin {
     if (!validateSettings(candidate)) this.settings = candidate;
     this.index = new NodeIndex(this.app, this.settings.nodesFolder);
     await this.refreshSchemaColors();
-    const api = new PublicNodesApi(this.app, this.index, () => this.settings);
-    this.publicApi = api;
-    this.register(() => { api.dispose(); this.publicApi = undefined; });
     this.prune = new PruneManager(this.app, () => this.settings, () => this.persist());
     this.prune.restore(stored?.createdNodes);
+    const api = new PublicNodesApi(this.app, this.index, () => this.settings, this.prune);
+    this.publicApi = api;
+    this.register(() => { api.dispose(); this.publicApi = undefined; });
     this.addSettingTab(new NodesSettingsTab(this.app, this));
     this.app.workspace.onLayoutReady(() => { this.index.rebuild(); this.prune.onResolved(); void this.refreshSchemaColors(); });
     this.registerEvent(this.app.metadataCache.on('resolved', () => this.prune.onResolved()));

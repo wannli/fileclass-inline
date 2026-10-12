@@ -4,6 +4,7 @@ import { loadSchemas, validateSchema, type NodeSchema } from './schema';
 import { CreateNodeModal, TypePicker } from './ui';
 import type { NodesSettings } from './settings';
 import type { HighlightColor } from './highlight';
+import type { PruneManager } from './prune';
 
 export interface NodeResult { path: string; title: string; type: string; aliases: string[]; color?: HighlightColor }
 export interface NodeType { type: string; label: string; color?: HighlightColor }
@@ -14,16 +15,17 @@ export interface NodesApi {
   searchNodes(query: string): NodeResult[];
   createNode(options: CreateNodeOptions): Promise<NodeResult | null>;
   getNode(path: string): NodeResult | null;
+  createNodeForLink?(options: CreateNodeOptions & { sourcePath: string }, link: (node: NodeResult) => Promise<void>): Promise<NodeResult | null>;
 }
 
-/** Retained references become inert on disposal; no editor or prune manager is involved. */
+/** Retained references become inert on disposal. Standalone creation never opts into pruning. */
 export class PublicNodesApi implements NodesApi {
   readonly version = 1 as const;
   private active = true;
   private pending = new Set<() => void>();
   // Newly written files may not have reached MetadataCache yet.
   private created = new Map<string, { file: TFile; result: NodeResult }>();
-  constructor(private app: App, private index: NodeIndex, private settings: () => NodesSettings) {}
+  constructor(private app: App, private index: NodeIndex, private settings: () => NodesSettings, private prune?: Pick<PruneManager, 'track'>) {}
   dispose(): void { this.active = false; for (const cancel of [...this.pending]) cancel(); this.created.clear(); }
   listTypes(): NodeType[] {
     if (!this.active) return [];
@@ -72,7 +74,33 @@ export class PublicNodesApi implements NodesApi {
     const colors = this.colors();
     return entry ? this.result(entry, colors) : recent ? this.snapshot(recent.result, colors) : null;
   }
-  createNode(options: CreateNodeOptions): Promise<NodeResult | null> {
+  async createNodeForLink(options: CreateNodeOptions & { sourcePath: string }, link: (node: NodeResult) => Promise<void>): Promise<NodeResult | null> {
+    const source = this.app.vault.getAbstractFileByPath(options.sourcePath);
+    if (!(source instanceof TFile)) return null;
+    let candidate: { file: TFile; content: string; schema: NodeSchema } | undefined;
+    const node = await this.create(options, (file, content, schema, inferable) => {
+      if (inferable) candidate = { file, content, schema };
+    });
+    if (!node) return null;
+    if (!this.active || options.signal?.aborted) return node;
+    const targetPath = node.path;
+    await link(node); // Failed/uncertain linking never establishes cleanup provenance.
+    const eligible = () => candidate && this.active && !options.signal?.aborted &&
+      this.app.vault.getAbstractFileByPath(options.sourcePath) === source &&
+      source.path === options.sourcePath && candidate.file.path === targetPath &&
+      this.app.vault.getAbstractFileByPath(targetPath) === candidate.file;
+    if (eligible()) {
+      // Exact path is a conservative retention token: any remaining mention keeps the node.
+      // PruneManager still requires an observed resolved link and all its usual safety fences.
+      try {
+        const content = await this.app.vault.read(source);
+        if (eligible() && content.includes(targetPath)) this.prune?.track(candidate!.file, options.sourcePath, targetPath, candidate!.content, candidate!.schema);
+      } catch (error) { console.warn('[Nodes] Link saved; cleanup enrollment skipped, node kept', error); }
+    }
+    return node;
+  }
+  createNode(options: CreateNodeOptions): Promise<NodeResult | null> { return this.create(options); }
+  private create(options: CreateNodeOptions, created?: (file: TFile, content: string, schema: NodeSchema, inferable: boolean) => void): Promise<NodeResult | null> {
     if (!this.active || options.signal?.aborted) return Promise.resolve(null);
     const { nodesFolder, schemasFolder } = this.settings();
     return new Promise(resolve => {
@@ -96,12 +124,14 @@ export class PublicNodesApi implements NodesApi {
       const show = (schema: NodeSchema): void => {
         if (!alive()) return;
         this.refresh();
-        dialog = new CreateNodeModal(this.app, this.index, schema, (file, content) => {
+        dialog = new CreateNodeModal(this.app, this.index, schema, (file, content, inferable) => {
           if (!alive()) return;
           const meta = parseYaml(content.split('\n---\n')[0].slice(4));
           const result: NodeResult = { path: file.path, title: file.basename, type: schema.nodeType,
             aliases: parseFrontMatterAliases(meta) ?? [], ...(schema.highlight ? { color: schema.highlight } : {}) };
-          this.created.set(file.path, { file, result }); finish({ ...result, aliases: [...result.aliases] });
+          this.created.set(file.path, { file, result });
+          created?.(file, content, schema, inferable);
+          finish({ ...result, aliases: [...result.aliases] });
         }, options.suggestedTitle ?? '', nodesFolder, schemasFolder, undefined, () => finish(null), alive);
         dialog.open();
       };

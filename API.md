@@ -22,6 +22,10 @@ interface NodesApi {
     signal?: AbortSignal;
   }): Promise<NodeResult | null>;
   getNode(path: string): NodeResult | null;
+  createNodeForLink?(
+    options: { type?: string; suggestedTitle?: string; sourcePath: string; signal?: AbortSignal },
+    link: (node: NodeResult) => Promise<void>
+  ): Promise<NodeResult | null>;
 }
 ```
 
@@ -33,5 +37,13 @@ interface NodesApi {
 - Created nodes are standalone and never registered for auto-pruning. Cancellation/closing either dialog or disabling Nodes resolves null and closes pending API dialogs. No new write begins after cancellation. A vault write already in progress cannot be rolled back: a standalone file may remain if the plugin is disabled during that write.
 - Optional `signal` lets callers cancel their own request on navigation/teardown. Abort resolves null once, closes its dialog, and prevents subsequent writes; an already-aborted signal opens nothing. The abort listener is removed on every completion path. Changing node/schema folder settings invalidates an open form before its next creation step, resolving null rather than writing into an obsolete folder.
 - Validation/write errors remain visible in the form for correction/retry; cancelling still resolves null. Schema changes while a form is open require reopening it.
+
+### Optional linked creation
+
+`createNodeForLink` is an additive, feature-detected v1 capability. It opens the same form, then awaits the caller's guarded link write. The callback must reject failed/uncertain writes and persist a link containing the exact returned vault-relative path **including `.md`**. Extensionless/short links are not enrolled. Do not mutate the result. Defer successful UI teardown until the operation returns; abort during creation, linking, or enrollment prevents enrollment.
+
+Only Nodes decides eligibility, using the form's original rendered values and its existing `PruneManager`. A successful eligible creation is tracked using the existing record format; the full path is a conservative retention token (even a remaining plain-text mention prevents cleanup). Nodes still waits for a resolved link and applies its unchanged last-link, pristine-content, schema, editor, and local-trash safeguards. Failed enrollment keeps the note; it does not undo a saved link. `createNode` retains its independent standalone semantics above.
+
+Reader must be updated to opt in and Nodes must expose this capability. Older Nodes versions fall back to standalone creation. Existing/previously created notes are never retroactively enrolled. No new Markdown properties or persisted schema are introduced.
 
 Version 1 is the API contract version, independent of the plugin release version. Breaking signature or semantic changes require a new API version. Reader and other optional consumers must gracefully handle absence, unsupported versions, null results, and Nodes being disabled mid-flow.
