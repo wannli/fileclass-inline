@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/wannli/obsidian-nodes/compare/0.3.0...0.3.1) (2026-10-12)
+
+
+### Fixed
+
+* **api:** reuse node cleanup for linked creation ([48cd967](https://github.com/wannli/obsidian-nodes/commit/48cd9676615ea0eb2908aef48679a2836a1d0bcf))
+
 ## [0.3.0](https://github.com/wannli/obsidian-nodes/compare/0.2.0...0.3.0) (2026-10-12)
 
 
