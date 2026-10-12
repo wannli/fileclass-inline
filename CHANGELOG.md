@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/wannli/obsidian-nodes/compare/0.2.0...0.3.0) (2026-10-12)
+
+
+### Added
+
+* **main:** expose schema-aware node integration api ([939f07f](https://github.com/wannli/obsidian-nodes/commit/939f07f31d3cd8521ceac935e129f0186b00d804))
+
 ## [0.2.0](https://github.com/wannli/obsidian-nodes/compare/0.1.0...0.2.0) (2026-10-11)
 
 
