@@ -11,6 +11,7 @@ import { DEFAULT_SETTINGS, NodesSettingsTab, validateSettings, type NodesSetting
 import { renderNodeSuggestion } from './suggestion-row';
 import { PruneManager, type TrackedNode } from './prune';
 import type { HighlightColor } from './highlight';
+import { PublicNodesApi, type NodesApi } from './api';
 
 type InlineChoice = { kind: 'existing'; hit: NodeHit } | { kind: 'create'; title: string };
 
@@ -39,6 +40,9 @@ class AtSuggest extends EditorSuggest<InlineChoice> {
 }
 
 export default class NodesPlugin extends Plugin {
+  /** Optional integration surface. Consumers must check version before use. */
+  private publicApi?: NodesApi;
+  get api(): NodesApi | undefined { return this.publicApi; }
   index!: NodeIndex;
   private prune!: PruneManager;
   private saves: Promise<void> = Promise.resolve();
@@ -51,6 +55,9 @@ export default class NodesPlugin extends Plugin {
     if (!validateSettings(candidate)) this.settings = candidate;
     this.index = new NodeIndex(this.app, this.settings.nodesFolder);
     await this.refreshSchemaColors();
+    const api = new PublicNodesApi(this.app, this.index, () => this.settings);
+    this.publicApi = api;
+    this.register(() => { api.dispose(); this.publicApi = undefined; });
     this.prune = new PruneManager(this.app, () => this.settings, () => this.persist());
     this.prune.restore(stored?.createdNodes);
     this.addSettingTab(new NodesSettingsTab(this.app, this));

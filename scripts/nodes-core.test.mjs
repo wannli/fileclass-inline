@@ -10,7 +10,7 @@ const bundled = await build({ entryPoints: ['src/schema.ts', 'src/create.ts'], b
 });
 const moduleAt = async suffix => import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles.find(file => file.path.endsWith(suffix)).contents).toString('base64')}`);
 const { validateSchema } = await moduleAt('schema.js');
-const { validateValues, renderNode, titleError } = await moduleAt('create.js');
+const { validateValues, renderNode, titleError, createNode } = await moduleAt('create.js');
 const input = { nodeSchema: 1, nodeType: 'person', highlight: 'green', properties: { active: { kind: 'checkbox', requiredOnCreate: true }, score: { kind: 'number', default: 0 } } };
 const schema = validateSchema(input, '# {{title}}', 'Schemas/person.md').schema;
 
@@ -21,6 +21,21 @@ test('required boolean accepts false; clearing default does not restore it', () 
   const draft = renderNode(schema, 'Ada', { active: false }, '2026-10-11', 'Idea\nsecond line');
   assert.match(draft, /^---\ntype: "person"\nschema: 1\n/m);
   assert.match(draft, /# Ada\n\nIdea\nsecond line$/);
+});
+
+test('cancelled creation performs no vault I/O', async () => {
+  const app = new Proxy({}, { get() { throw new Error('unexpected I/O'); } });
+  await assert.rejects(createNode(app, {}, schema, 'Ada', {}, 'Nodes', undefined, () => false), /Creation cancelled/);
+});
+
+test('cancellation after folder creation prevents file write', async () => {
+  let active = true;
+  const app = { vault: {
+    getAbstractFileByPath: () => null,
+    createFolder: async () => { active = false; },
+    create: async () => { throw new Error('unexpected write'); },
+  } };
+  await assert.rejects(createNode(app, {}, { ...schema, properties: {} }, 'Ada', {}, 'Nodes', undefined, () => active), /Creation cancelled/);
 });
 
 test('invalid schema and filenames cannot write a draft', () => {

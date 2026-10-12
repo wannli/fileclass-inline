@@ -53,20 +53,24 @@ export function renderNode(schema: NodeSchema, title: string, values: Values, da
   return `---\n${stringifyYaml(props).trimEnd()}\n---\n${template}${selectedBody ? `\n\n${selectedBody}` : ''}`;
 }
 
-export async function createNode(app: App, index: NodeIndex, schema: NodeSchema, title: string, values: Values, folder = 'Nodes', selectedBody?: string): Promise<CreatedNode> {
+export async function createNode(app: App, index: NodeIndex, schema: NodeSchema, title: string, values: Values, folder = 'Nodes', selectedBody?: string, isActive: () => boolean = () => true, beforeCommit?: () => Promise<void>): Promise<CreatedNode> {
+  if (!isActive()) throw new Error('Creation cancelled');
   const now = new Date();
   const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
   const content = renderNode(schema, title, values, date, selectedBody);
   const path = `${folder}/${title}.md`;
-  for (const [name, field] of Object.entries(schema.properties)) {
-    const value = resolved(field, values, name);
-    if (field.kind !== 'link' || missing(value)) continue;
-    const linkpath = (value as string).slice(2, -2).split('|')[0];
-    const target = app.metadataCache.getFirstLinkpathDest(linkpath, path);
-    if (!target || !index.all().some(entry => entry.file.path === target.path && (!field.targetType || entry.type === field.targetType))) {
-      throw new Error(`${name}: choose an existing ${field.targetType ?? 'typed'} node`);
+  const validateLinks = (): void => {
+    for (const [name, field] of Object.entries(schema.properties)) {
+      const value = resolved(field, values, name);
+      if (field.kind !== 'link' || missing(value)) continue;
+      const linkpath = (value as string).slice(2, -2).split('|')[0];
+      const target = app.metadataCache.getFirstLinkpathDest(linkpath, path);
+      if (!target || !index.all().some(entry => entry.file.path === target.path && (!field.targetType || entry.type === field.targetType))) {
+        throw new Error(`${name}: choose an existing ${field.targetType ?? 'typed'} node`);
+      }
     }
-  }
+  };
+  validateLinks();
   const existingFolder = app.vault.getAbstractFileByPath(folder);
   if (existingFolder && !(existingFolder instanceof TFolder)) throw new Error(`${folder} is a file, not a folder`);
   if (app.vault.getAbstractFileByPath(path)) throw new Error(`Node already exists at ${path}`);
@@ -76,10 +80,16 @@ export async function createNode(app: App, index: NodeIndex, schema: NodeSchema,
       const segment = segments.slice(0, i).join('/');
       const existing = app.vault.getAbstractFileByPath(segment);
       if (existing && !(existing instanceof TFolder)) throw new Error(`${segment} is a file`);
+      if (!isActive()) throw new Error('Creation cancelled');
       if (!existing) try { await app.vault.createFolder(segment); }
       catch (error) { if (!(app.vault.getAbstractFileByPath(segment) instanceof TFolder)) throw error; }
     }
   }
+  // Revalidate after all folder awaits, immediately before committing the file.
+  if (!isActive()) throw new Error('Creation cancelled');
+  await beforeCommit?.();
+  if (!isActive()) throw new Error('Creation cancelled');
+  validateLinks();
   // Vault.create refuses a racing duplicate; never use modify() here.
   return { file: await app.vault.create(path, content), content };
 }

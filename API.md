@@ -1,0 +1,37 @@
+# Optional integration API (version 1)
+
+Available on the enabled `obsidian-nodes` plugin instance as `plugin.api`. Check that the plugin exists and `api?.version === 1`; do not require Nodes or import its private classes. The API is available after Nodes loads. Retained references are safe after unload: reads return empty arrays/null and creation resolves null. Feature-detect again after re-enabling.
+
+```ts
+type Color = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
+interface NodeResult {
+  path: string;
+  title: string;
+  type: string;
+  aliases: string[];
+  color?: Color;
+}
+interface NodesApi {
+  readonly version: 1;
+  listTypes(): Array<{ type: string; label: string; color?: Color }>;
+  searchNodes(query: string): NodeResult[];
+  createNode(options: {
+    type?: string;
+    suggestedTitle?: string;
+    sourcePath?: string;
+    signal?: AbortSignal;
+  }): Promise<NodeResult | null>;
+  getNode(path: string): NodeResult | null;
+}
+```
+
+- Paths are exact vault-relative Markdown paths including `.md`. Titles are filenames without `.md`; aliases exclude the title. Results are independent snapshots.
+- Reads rebuild the node index from Obsidian's current metadata snapshot. Like Obsidian itself, externally edited files become visible after the host parses their metadata. Types/labels/colors use current schema metadata, not a color captured when a node was created. Duplicate or invalid schema metadata is excluded; creation additionally validates the full schema/template from a fresh vault read.
+- Search matches titles and aliases using the existing ranked fuzzy search, with no API result limit. Empty query lists nodes. `getNode` returns null for missing, untyped, or out-of-folder notes. Recently API-created nodes are available immediately, even before the metadata cache catches up.
+- Creation always opens the existing schema-aware form (required fields, defaults, link fields, and templates). Omitting `type` opens the type chooser first. `suggestedTitle` is editable, not silently accepted. Unknown types/no usable schemas return null with a notice.
+- `sourcePath` is optional caller context, reserved for future use in v1; it does not insert a link, open an editor, set properties, or establish cleanup provenance. Callers own any subsequent linking.
+- Created nodes are standalone and never registered for auto-pruning. Cancellation/closing either dialog or disabling Nodes resolves null and closes pending API dialogs. No new write begins after cancellation. A vault write already in progress cannot be rolled back: a standalone file may remain if the plugin is disabled during that write.
+- Optional `signal` lets callers cancel their own request on navigation/teardown. Abort resolves null once, closes its dialog, and prevents subsequent writes; an already-aborted signal opens nothing. The abort listener is removed on every completion path. Changing node/schema folder settings invalidates an open form before its next creation step, resolving null rather than writing into an obsolete folder.
+- Validation/write errors remain visible in the form for correction/retry; cancelling still resolves null. Schema changes while a form is open require reopening it.
+
+Version 1 is the API contract version, independent of the plugin release version. Breaking signature or semantic changes require a new API version. Reader and other optional consumers must gracefully handle absence, unsupported versions, null results, and Nodes being disabled mid-flow.

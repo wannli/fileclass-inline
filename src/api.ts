@@ -1,0 +1,121 @@
+import { App, Modal, Notice, parseFrontMatterAliases, parseYaml, TFile } from 'obsidian';
+import { NodeIndex, type NodeEntry } from './index';
+import { loadSchemas, validateSchema, type NodeSchema } from './schema';
+import { CreateNodeModal, TypePicker } from './ui';
+import type { NodesSettings } from './settings';
+import type { HighlightColor } from './highlight';
+
+export interface NodeResult { path: string; title: string; type: string; aliases: string[]; color?: HighlightColor }
+export interface NodeType { type: string; label: string; color?: HighlightColor }
+export interface CreateNodeOptions { type?: string; suggestedTitle?: string; sourcePath?: string; signal?: AbortSignal }
+export interface NodesApi {
+  readonly version: 1;
+  listTypes(): NodeType[];
+  searchNodes(query: string): NodeResult[];
+  createNode(options: CreateNodeOptions): Promise<NodeResult | null>;
+  getNode(path: string): NodeResult | null;
+}
+
+/** Retained references become inert on disposal; no editor or prune manager is involved. */
+export class PublicNodesApi implements NodesApi {
+  readonly version = 1 as const;
+  private active = true;
+  private pending = new Set<() => void>();
+  // Newly written files may not have reached MetadataCache yet.
+  private created = new Map<string, { file: TFile; result: NodeResult }>();
+  constructor(private app: App, private index: NodeIndex, private settings: () => NodesSettings) {}
+  dispose(): void { this.active = false; for (const cancel of [...this.pending]) cancel(); this.created.clear(); }
+  listTypes(): NodeType[] {
+    if (!this.active) return [];
+    const schemas = this.app.vault.getMarkdownFiles()
+      .filter(file => file.path.startsWith(`${this.settings().schemasFolder}/`))
+      .flatMap(file => {
+        const schema = validateSchema(this.app.metadataCache.getFileCache(file)?.frontmatter, '', file.path).schema;
+        return schema ? [schema] : [];
+      });
+    return schemas.filter(schema => schemas.filter(other => other.nodeType === schema.nodeType).length === 1)
+      .map(schema => ({ type: schema.nodeType, label: schema.label, ...(schema.highlight ? { color: schema.highlight } : {}) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+  private colors(): Map<string, HighlightColor | undefined> {
+    return new Map(this.listTypes().map(type => [type.type, type.color]));
+  }
+  private result(entry: NodeEntry, colors: Map<string, HighlightColor | undefined>): NodeResult {
+    const color = colors.get(entry.type);
+    return { path: entry.file.path, title: entry.file.basename, type: entry.type, aliases: entry.labels.slice(1), ...(color ? { color } : {}) };
+  }
+  private refresh(): void {
+    this.index.setFolder(this.settings().nodesFolder);
+    for (const [path, recent] of this.created) {
+      const file = this.app.vault.getAbstractFileByPath(path);
+      if (file !== recent.file || !path.startsWith(`${this.settings().nodesFolder}/`) || this.app.metadataCache.getFileCache(recent.file) != null) this.created.delete(path);
+    }
+  }
+  searchNodes(query: string): NodeResult[] {
+    if (!this.active) return [];
+    this.refresh();
+    const colors = this.colors();
+    const results = this.index.search(query, Infinity).map(hit => this.result(hit.entry, colors));
+    for (const { result: node } of this.created.values()) if ([node.title, ...node.aliases].some(label => label.toLowerCase().includes(query.trim().toLowerCase()))) results.push(this.snapshot(node, colors));
+    return results;
+  }
+  private snapshot(node: NodeResult, colors: Map<string, HighlightColor | undefined>): NodeResult {
+    const { color: _old, ...rest } = node;
+    const color = colors.get(node.type);
+    return { ...rest, aliases: [...node.aliases], ...(color ? { color } : {}) };
+  }
+  getNode(path: string): NodeResult | null {
+    if (!this.active) return null;
+    this.refresh();
+    const entry = this.index.all().find(node => node.file.path === path);
+    const recent = this.created.get(path);
+    const colors = this.colors();
+    return entry ? this.result(entry, colors) : recent ? this.snapshot(recent.result, colors) : null;
+  }
+  createNode(options: CreateNodeOptions): Promise<NodeResult | null> {
+    if (!this.active || options.signal?.aborted) return Promise.resolve(null);
+    const { nodesFolder, schemasFolder } = this.settings();
+    return new Promise(resolve => {
+      let settled = false;
+      let dialog: Modal | undefined;
+      const finish = (result: NodeResult | null): void => {
+        if (settled) return;
+        settled = true; this.pending.delete(cancel);
+        options.signal?.removeEventListener('abort', cancel);
+        resolve(result);
+      };
+      const cancel = (): void => { finish(null); dialog?.close(); };
+      this.pending.add(cancel);
+      options.signal?.addEventListener('abort', cancel, { once: true });
+      const alive = (): boolean => {
+        if (!this.active || settled) return false;
+        const current = this.settings();
+        if (current.nodesFolder !== nodesFolder || current.schemasFolder !== schemasFolder) { cancel(); return false; }
+        return true;
+      };
+      const show = (schema: NodeSchema): void => {
+        if (!alive()) return;
+        this.refresh();
+        dialog = new CreateNodeModal(this.app, this.index, schema, (file, content) => {
+          if (!alive()) return;
+          const meta = parseYaml(content.split('\n---\n')[0].slice(4));
+          const result: NodeResult = { path: file.path, title: file.basename, type: schema.nodeType,
+            aliases: parseFrontMatterAliases(meta) ?? [], ...(schema.highlight ? { color: schema.highlight } : {}) };
+          this.created.set(file.path, { file, result }); finish({ ...result, aliases: [...result.aliases] });
+        }, options.suggestedTitle ?? '', nodesFolder, schemasFolder, undefined, () => finish(null), alive);
+        dialog.open();
+      };
+      void loadSchemas(this.app, schemasFolder).then(({ schemas }) => {
+        if (!alive()) return;
+        if (options.type !== undefined) {
+          const schema = schemas.find(schema => schema.nodeType === options.type);
+          if (schema) show(schema); else { new Notice('Nodes: requested type is unavailable'); finish(null); }
+        } else if (schemas.length) {
+          let chosen = false;
+          dialog = new TypePicker(this.app, schemas, schema => { chosen = true; show(schema); }, () => { if (!chosen) finish(null); });
+          dialog.open();
+        } else { new Notice('Nodes: no valid node schemas'); finish(null); }
+      }).catch(error => { if (alive()) new Notice(`Nodes: ${String(error)}`); finish(null); });
+    });
+  }
+}

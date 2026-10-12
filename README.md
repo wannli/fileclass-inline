@@ -85,6 +85,10 @@ Cleanup is enabled by default and can be turned off in **Settings → Nodes → 
 
 **Verification:** Automated checks validate metadata, types, focused core behavior, and build assets. Native desktop/mobile use still needs an in-app smoke check; `isDesktopOnly: false` is not evidence of real-device verification.
 
+## Optional integrations
+
+Reader and other plugins can use the versioned public `plugin.api` surface to discover types, search/read nodes, and open standalone creation forms without inserting editor links. See [API.md](API.md) for the v1 contract, lifecycle, and cancellation behavior.
+
 ## Files
 
 - `src/main.ts` — plugin entry point.

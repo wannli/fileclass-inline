@@ -5,12 +5,13 @@ import { createNode, inferableOnly, resolved, titleError, validateValues, type V
 import { shortestWikiLink } from './links';
 
 export class TypePicker extends SuggestModal<NodeSchema> {
-  constructor(app: App, private schemas: NodeSchema[], private choose: (schema: NodeSchema) => void) {
+  constructor(app: App, private schemas: NodeSchema[], private choose: (schema: NodeSchema) => void, private dismissed?: () => void) {
     super(app); this.setPlaceholder('Choose a node type'); this.shouldRestoreSelection = false;
   }
   getSuggestions(query: string): NodeSchema[] { return this.schemas.filter(schema => `${schema.label} ${schema.nodeType}`.toLowerCase().includes(query.toLowerCase())); }
   renderSuggestion(schema: NodeSchema, el: HTMLElement): void { el.setText(schema.label); }
   onChooseSuggestion(schema: NodeSchema): void { this.choose(schema); }
+  onClose(): void { queueMicrotask(() => this.dismissed?.()); }
 }
 
 export class CreateNodeModal extends Modal {
@@ -19,13 +20,14 @@ export class CreateNodeModal extends Modal {
   private pending = false;
   private errorEl?: HTMLElement;
   private createButton?: ButtonComponent;
-  constructor(app: App, private index: NodeIndex, private schema: NodeSchema, private created: (file: TFile, content: string, inferable: boolean) => void, title = '', private folder = 'Nodes', private schemaFolder = 'Schemas', private selectedBody?: string) {
+  constructor(app: App, private index: NodeIndex, private schema: NodeSchema, private created: (file: TFile, content: string, inferable: boolean) => void, title = '', private folder = 'Nodes', private schemaFolder = 'Schemas', private selectedBody?: string, private dismissed?: () => void, private isActive: () => boolean = () => true) {
     super(app); this.title = title; this.shouldRestoreSelection = false;
     for (const modifier of ['Ctrl', 'Meta'] as const) this.scope.register([modifier], 'Enter', () => {
       void this.submit();
       return false;
     });
   }
+  onClose(): void { this.dismissed?.(); }
   onOpen(): void {
     this.contentEl.empty();
     this.contentEl.createEl('h2', { text: `Create ${this.schema.label}` });
@@ -45,7 +47,7 @@ export class CreateNodeModal extends Modal {
     }));
   }
   private async submit(): Promise<void> {
-    if (this.pending || !this.errorEl || !this.createButton) return;
+    if (!this.isActive() || this.pending || !this.errorEl || !this.createButton) return;
     const errors = [titleError(this.title), ...validateValues(this.schema, this.values)].filter(Boolean);
     if (errors.length) { this.errorEl.setText(errors.join('; ')); return; }
     this.pending = true;
@@ -54,10 +56,17 @@ export class CreateNodeModal extends Modal {
     button.setDisabled(true);
     try {
       const fresh = await loadSchemas(this.app, this.schemaFolder);
+      if (!this.isActive()) return;
       const current = fresh.schemas.find(schema => schema.path === this.schema.path && schema.nodeType === this.schema.nodeType);
       if (!current || JSON.stringify(current) !== JSON.stringify(this.schema)) throw new Error('Schema changed while the form was open; reopen the creation form');
-      const { file, content } = await createNode(this.app, this.index, current, this.title, this.values, this.folder, this.selectedBody);
-      this.close(); this.created(file, content, inferableOnly(current, this.values, this.selectedBody));
+      const beforeCommit = async (): Promise<void> => {
+        const latest = await loadSchemas(this.app, this.schemaFolder);
+        const final = latest.schemas.find(schema => schema.path === current.path && schema.nodeType === current.nodeType);
+        if (!final || JSON.stringify(final) !== JSON.stringify(current)) throw new Error('Schema changed while the form was open; reopen the creation form');
+        this.index.rebuild();
+      };
+      const { file, content } = await createNode(this.app, this.index, current, this.title, this.values, this.folder, this.selectedBody, this.isActive, beforeCommit);
+      this.created(file, content, inferableOnly(current, this.values, this.selectedBody)); this.close();
     } catch (error) { errorEl.setText(`Could not create node: ${String(error)}`); }
     finally { this.pending = false; button.setDisabled(false); }
   }
