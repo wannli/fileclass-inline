@@ -1,6 +1,8 @@
-# Nodes — Obsidian plugin development
+# Nodes — inline creation and linking for FileClass
 
-Typed Markdown nodes in Obsidian, with YAML schemas, validated creation, and fuzzy linking of names and aliases. Includes an isolated local development vault.
+Nodes is a companion extension to [FileClass](https://github.com/mdelobelle/fileclass). It extends FileClass's typed-note workflow with inline `@` creation, fuzzy linking of names and aliases, and safe cleanup of unused link-created notes.
+
+This repository is currently a standalone prototype with its own YAML schema format; direct FileClass compatibility is the intended direction. It also includes an isolated local development vault.
 
 ## Setup
 
