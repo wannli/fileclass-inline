@@ -1,9 +1,9 @@
 {
-  "id": "obsidian-nodes",
-  "name": "Nodes",
+  "id": "fileclass-inline",
+  "name": "FileClass Inline",
   "version": "0.3.1",
   "minAppVersion": "1.5.0",
-  "description": "Create typed Markdown nodes from YAML schemas and link them with fuzzy @ suggestions.",
+  "description": "Extend FileClass workflows with inline creation and fuzzy @ linking.",
   "author": "Wannes Lint",
   "isDesktopOnly": false
 }

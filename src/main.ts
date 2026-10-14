@@ -7,16 +7,16 @@ import { capture, insertLink, isOriginCurrent, type Origin } from './references'
 import { selectedAtExtension } from './selection-at';
 import { planSelection } from './selected-text';
 import { atTrigger } from './trigger';
-import { DEFAULT_SETTINGS, NodesSettingsTab, validateSettings, type NodesSettings } from './settings';
+import { DEFAULT_SETTINGS, FileClassInlineSettingsTab, validateSettings, type FileClassInlineSettings } from './settings';
 import { renderNodeSuggestion } from './suggestion-row';
 import { PruneManager, type TrackedNode } from './prune';
 import type { HighlightColor } from './highlight';
-import { PublicNodesApi, type NodesApi } from './api';
+import { PublicFileClassInlineApi, type FileClassInlineApi } from './api';
 
 type InlineChoice = { kind: 'existing'; hit: NodeHit } | { kind: 'create'; title: string };
 
 class AtSuggest extends EditorSuggest<InlineChoice> {
-  constructor(app: NodesPlugin['app'], private plugin: NodesPlugin) { super(app); this.limit = 21; }
+  constructor(app: FileClassInlinePlugin['app'], private plugin: FileClassInlinePlugin) { super(app); this.limit = 21; }
   onTrigger(cursor: EditorPosition, editor: Editor, file: TFile | null): EditorSuggestTriggerInfo | null {
     return file ? atTrigger(editor, cursor, this.plugin.settings.trigger) : null;
   }
@@ -39,28 +39,28 @@ class AtSuggest extends EditorSuggest<InlineChoice> {
   }
 }
 
-export default class NodesPlugin extends Plugin {
+export default class FileClassInlinePlugin extends Plugin {
   /** Optional integration surface. Consumers must check version before use. */
-  private publicApi?: NodesApi;
-  get api(): NodesApi | undefined { return this.publicApi; }
+  private publicApi?: FileClassInlineApi;
+  get api(): FileClassInlineApi | undefined { return this.publicApi; }
   index!: NodeIndex;
   private prune!: PruneManager;
   private saves: Promise<void> = Promise.resolve();
   private typeColors = new Map<string, HighlightColor>();
   private colorRefresh = 0;
-  settings: NodesSettings = { ...DEFAULT_SETTINGS };
+  settings: FileClassInlineSettings = { ...DEFAULT_SETTINGS };
   override async onload(): Promise<void> {
-    const stored = await this.loadData() as (Partial<NodesSettings> & { createdNodes?: Record<string, TrackedNode> }) | null;
+    const stored = await this.loadData() as (Partial<FileClassInlineSettings> & { createdNodes?: Record<string, TrackedNode> }) | null;
     const candidate = { ...DEFAULT_SETTINGS, ...stored };
     if (!validateSettings(candidate)) this.settings = candidate;
     this.index = new NodeIndex(this.app, this.settings.nodesFolder);
     await this.refreshSchemaColors();
     this.prune = new PruneManager(this.app, () => this.settings, () => this.persist());
     this.prune.restore(stored?.createdNodes);
-    const api = new PublicNodesApi(this.app, this.index, () => this.settings, this.prune);
+    const api = new PublicFileClassInlineApi(this.app, this.index, () => this.settings, this.prune);
     this.publicApi = api;
     this.register(() => { api.dispose(); this.publicApi = undefined; });
-    this.addSettingTab(new NodesSettingsTab(this.app, this));
+    this.addSettingTab(new FileClassInlineSettingsTab(this.app, this));
     this.app.workspace.onLayoutReady(() => { this.index.rebuild(); this.prune.onResolved(); void this.refreshSchemaColors(); });
     this.registerEvent(this.app.metadataCache.on('resolved', () => this.prune.onResolved()));
     this.registerEvent(this.app.workspace.on('layout-change', () => this.prune.onResolved()));
@@ -110,7 +110,7 @@ export default class NodesPlugin extends Plugin {
     this.saves = this.saves.catch(() => {}).then(() => this.saveData({ ...this.settings, createdNodes: this.prune.entries() }));
     return this.saves;
   }
-  async saveSettings(settings: NodesSettings): Promise<void> {
+  async saveSettings(settings: FileClassInlineSettings): Promise<void> {
     this.settings = { ...settings };
     await this.persist();
     this.index.setFolder(settings.nodesFolder);
@@ -151,7 +151,7 @@ export default class NodesPlugin extends Plugin {
   }
   async startCreate(seed: string, origin?: Origin, label?: string, selectedBody?: string): Promise<void> {
     const { schemas, diagnostics } = await loadSchemas(this.app, this.settings.schemasFolder);
-    if (diagnostics.length) new Notice(`Nodes: ${diagnostics.length} schema issue(s). Run “Check schemas” for details.`);
+    if (diagnostics.length) new Notice(`FileClass Inline: ${diagnostics.length} schema issue(s). Run “Check schemas” for details.`);
     if (!schemas.length) { new Notice(`No valid node schemas in ${this.settings.schemasFolder}/. Run “Check schemas”.`); return; }
     new TypePicker(this.app, schemas, schema => {
       new CreateNodeModal(this.app, this.index, schema, (file, content, inferable) => {

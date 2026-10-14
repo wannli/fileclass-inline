@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
-const bundle = await build({ stdin: { contents: "export { PublicNodesApi } from './src/api'; export { PruneManager } from './src/prune';", resolveDir: process.cwd() }, bundle: true, platform: 'node', format: 'esm', write: false,
+const bundle = await build({ stdin: { contents: "export { PublicFileClassInlineApi } from './src/api'; export { PruneManager } from './src/prune';", resolveDir: process.cwd() }, bundle: true, platform: 'node', format: 'esm', write: false,
   plugins: [{ name: 'host', setup(build) {
     build.onResolve({ filter: /^obsidian$/ }, () => ({ path: 'host', namespace: 'stub' }));
     build.onResolve({ filter: /^\.\/ui$/ }, () => ({ path: 'ui', namespace: 'stub' }));
@@ -16,9 +16,9 @@ const bundle = await build({ stdin: { contents: "export { PublicNodesApi } from 
         open() {} close() {}
       }` }));
   } }] });
-const { PublicNodesApi, PruneManager } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString('base64')}`);
+const { PublicFileClassInlineApi, PruneManager } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString('base64')}`);
 const tick = () => new Promise(resolve => setImmediate(resolve));
-for (const mode of ['pristine', 'authored', 'edited', 'existing', 'other-link']) test(`API creation uses real Nodes pruning: ${mode}`, async () => {
+for (const mode of ['pristine', 'authored', 'edited', 'existing', 'other-link']) test(`API creation uses real FileClass Inline pruning: ${mode}`, async () => {
   const File = globalThis.__PruneApiFile;
   const source = new File('Reading/Article.md'), node = new File('Nodes/New.md'), schema = new File('Schemas/person.md');
   const files = new Map([source, node, schema].map(file => [file.path, file]));
@@ -31,7 +31,7 @@ for (const mode of ['pristine', 'authored', 'edited', 'existing', 'other-link'])
   }, metadataCache: { resolvedLinks: {}, unresolvedLinks: {}, getFileCache: () => ({}) }, workspace: { iterateAllLeaves() {} } };
   const settings = { nodesFolder: 'Nodes', schemasFolder: 'Schemas', cleanupOrphans: true };
   const prune = new PruneManager(app, () => settings, async () => {});
-  const api = new PublicNodesApi(app, { setFolder() {}, all: () => [] }, () => settings, prune);
+  const api = new PublicFileClassInlineApi(app, { setFolder() {}, all: () => [] }, () => settings, prune);
   try {
     const link = async () => { contents.set(source.path, '==[[Nodes/New.md|words]]=='); app.metadataCache.resolvedLinks[source.path] = { [node.path]: 1 }; };
     if (mode === 'existing') await link();

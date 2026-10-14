@@ -2,14 +2,14 @@ import { App, Modal, Notice, parseFrontMatterAliases, parseYaml, TFile } from 'o
 import { NodeIndex, type NodeEntry } from './index';
 import { loadSchemas, validateSchema, type NodeSchema } from './schema';
 import { CreateNodeModal, TypePicker } from './ui';
-import type { NodesSettings } from './settings';
+import type { FileClassInlineSettings } from './settings';
 import type { HighlightColor } from './highlight';
 import type { PruneManager } from './prune';
 
 export interface NodeResult { path: string; title: string; type: string; aliases: string[]; color?: HighlightColor }
 export interface NodeType { type: string; label: string; color?: HighlightColor }
 export interface CreateNodeOptions { type?: string; suggestedTitle?: string; sourcePath?: string; signal?: AbortSignal }
-export interface NodesApi {
+export interface FileClassInlineApi {
   readonly version: 1;
   listTypes(): NodeType[];
   searchNodes(query: string): NodeResult[];
@@ -19,13 +19,13 @@ export interface NodesApi {
 }
 
 /** Retained references become inert on disposal. Standalone creation never opts into pruning. */
-export class PublicNodesApi implements NodesApi {
+export class PublicFileClassInlineApi implements FileClassInlineApi {
   readonly version = 1 as const;
   private active = true;
   private pending = new Set<() => void>();
   // Newly written files may not have reached MetadataCache yet.
   private created = new Map<string, { file: TFile; result: NodeResult }>();
-  constructor(private app: App, private index: NodeIndex, private settings: () => NodesSettings, private prune?: Pick<PruneManager, 'track'>) {}
+  constructor(private app: App, private index: NodeIndex, private settings: () => FileClassInlineSettings, private prune?: Pick<PruneManager, 'track'>) {}
   dispose(): void { this.active = false; for (const cancel of [...this.pending]) cancel(); this.created.clear(); }
   listTypes(): NodeType[] {
     if (!this.active) return [];
@@ -95,7 +95,7 @@ export class PublicNodesApi implements NodesApi {
       try {
         const content = await this.app.vault.read(source);
         if (eligible() && content.includes(targetPath)) this.prune?.track(candidate!.file, options.sourcePath, targetPath, candidate!.content, candidate!.schema);
-      } catch (error) { console.warn('[Nodes] Link saved; cleanup enrollment skipped, node kept', error); }
+      } catch (error) { console.warn('[FileClass Inline] Link saved; cleanup enrollment skipped, node kept', error); }
     }
     return node;
   }
@@ -139,13 +139,13 @@ export class PublicNodesApi implements NodesApi {
         if (!alive()) return;
         if (options.type !== undefined) {
           const schema = schemas.find(schema => schema.nodeType === options.type);
-          if (schema) show(schema); else { new Notice('Nodes: requested type is unavailable'); finish(null); }
+          if (schema) show(schema); else { new Notice('FileClass Inline: requested type is unavailable'); finish(null); }
         } else if (schemas.length) {
           let chosen = false;
           dialog = new TypePicker(this.app, schemas, schema => { chosen = true; show(schema); }, () => { if (!chosen) finish(null); });
           dialog.open();
-        } else { new Notice('Nodes: no valid node schemas'); finish(null); }
-      }).catch(error => { if (alive()) new Notice(`Nodes: ${String(error)}`); finish(null); });
+        } else { new Notice('FileClass Inline: no valid node schemas'); finish(null); }
+      }).catch(error => { if (alive()) new Notice(`FileClass Inline: ${String(error)}`); finish(null); });
     });
   }
 }

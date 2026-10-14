@@ -24,7 +24,7 @@ const bundle = await build({ entryPoints: ['src/api.ts'], bundle: true, platform
       }
     ` }));
   } }] });
-const { PublicNodesApi } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString('base64')}`);
+const { PublicFileClassInlineApi } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString('base64')}`);
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function fixture() {
   const schema = { path: 'Schemas/person.md', basename: 'person' };
@@ -39,7 +39,7 @@ function fixture() {
   const index = { setFolder() { rebuilds++; }, all: () => files.includes(file) ? [entry] : [], search() { return this.all().map(entry => ({ entry })); } };
   const settings = { schemasFolder: 'Schemas', nodesFolder: 'Nodes' };
   const tracked = [];
-  const api = new PublicNodesApi(app, index, () => settings, { track: (...args) => tracked.push(args) });
+  const api = new PublicFileClassInlineApi(app, index, () => settings, { track: (...args) => tracked.push(args) });
   return { api, app, meta, files, file, settings, tracked, rebuilds: () => rebuilds };
 }
 test('versioned snapshots expose paths, aliases and live colors without leaking mutations', () => {

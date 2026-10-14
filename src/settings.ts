@@ -1,15 +1,15 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import type NodesPlugin from './main';
+import type FileClassInlinePlugin from './main';
 
-export interface NodesSettings { nodesFolder: string; schemasFolder: string; trigger: string; cleanupOrphans: boolean }
-export const DEFAULT_SETTINGS: NodesSettings = { nodesFolder: 'Nodes', schemasFolder: 'Schemas', trigger: '@', cleanupOrphans: true };
+export interface FileClassInlineSettings { nodesFolder: string; schemasFolder: string; trigger: string; cleanupOrphans: boolean }
+export const DEFAULT_SETTINGS: FileClassInlineSettings = { nodesFolder: 'Nodes', schemasFolder: 'Schemas', trigger: '@', cleanupOrphans: true };
 
 export function validateFolder(value: string): string | null {
   if (typeof value !== 'string' || !value || value !== value.trim() || value.startsWith('/') || value.endsWith('/') || value.includes('\\')) return 'Use a vault-relative folder, without surrounding slashes or spaces';
   if (value.split('/').some(part => !part || part === '.' || part === '..' || part === '.obsidian' || /[\\:*?"<>|\x00-\x1f]/.test(part))) return 'Folder contains an invalid segment';
   return null;
 }
-export function validateSettings(data: NodesSettings): string | null {
+export function validateSettings(data: FileClassInlineSettings): string | null {
   const invalid = validateFolder(data.nodesFolder) ?? validateFolder(data.schemasFolder);
   if (invalid) return invalid;
   if (data.nodesFolder === data.schemasFolder || data.nodesFolder.startsWith(`${data.schemasFolder}/`) || data.schemasFolder.startsWith(`${data.nodesFolder}/`)) return 'Node and schema folders must not overlap';
@@ -18,11 +18,11 @@ export function validateSettings(data: NodesSettings): string | null {
   return null;
 }
 
-export class NodesSettingsTab extends PluginSettingTab {
-  constructor(app: App, private plugin: NodesPlugin) { super(app, plugin); }
+export class FileClassInlineSettingsTab extends PluginSettingTab {
+  constructor(app: App, private plugin: FileClassInlinePlugin) { super(app, plugin); }
   display(): void {
     const { containerEl } = this; containerEl.empty();
-    containerEl.createEl('h2', { text: 'Nodes' });
+    containerEl.createEl('h2', { text: 'FileClass Inline' });
     const draft = { ...this.plugin.settings };
     new Setting(containerEl).setName('Node folder').setDesc('Vault-relative folder, default Nodes')
       .addText(text => text.setValue(draft.nodesFolder).onChange(value => { draft.nodesFolder = value; }));

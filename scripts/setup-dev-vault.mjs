@@ -9,8 +9,8 @@ const plugins = join(config, 'plugins');
 const manifest = JSON.parse(await readFile(join(root, 'manifest.json'), 'utf8'));
 const plugin = join(plugins, manifest.id);
 const hotReload = join(plugins, 'hot-reload');
-const vaultMarker = join(vault, '.obsidian-nodes-dev-vault');
-const pluginMarker = join(plugin, '.obsidian-nodes-dev-plugin');
+const vaultMarker = join(vault, '.fileclass-inline-dev-vault');
+const pluginMarker = join(plugin, '.fileclass-inline-dev-plugin');
 
 async function exists(path) {
   try { return await lstat(path); }

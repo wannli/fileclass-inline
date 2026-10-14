@@ -18,7 +18,7 @@ const bundle = await build({ entryPoints: ['src/api.ts'], bundle: true, platform
       export const parseFrontMatterAliases = meta => meta.aliases ?? [];
     ` }));
   } }] });
-const { PublicNodesApi } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString('base64')}`);
+const { PublicFileClassInlineApi } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString('base64')}`);
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; }
 function fixture() {
@@ -34,7 +34,7 @@ function fixture() {
     create: async path => { writes++; return { path, basename: 'Ada' }; },
   }, metadataCache: { getFirstLinkpathDest: () => target, getFileCache: () => null } };
   const index = { setFolder() {}, rebuild() {}, all: () => target ? [{ file: target, type: 'person' }] : [] };
-  const api = new PublicNodesApi(app, index, () => ({ nodesFolder: 'Nodes', schemasFolder: 'Schemas' }));
+  const api = new PublicFileClassInlineApi(app, index, () => ({ nodesFolder: 'Nodes', schemasFolder: 'Schemas' }));
   const prepare = () => {
     app.dialog.errorEl = { setText(text) { app.error = text; } };
     app.dialog.createButton = { setDisabled() {} };

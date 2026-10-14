@@ -46,13 +46,13 @@ export class PruneManager {
     if (content.length > 16_000 || schemaSnapshot.length > 16_000 || sourceLink.length > 1_000) return;
     if (this.disposed) return;
     this.tracked[file.path] = { path: file.path, createdAt: file.stat.ctime, sourcePath, sourceLink, content, schemaPath: schema.path, schemaSnapshot };
-    void this.save().catch(error => console.warn('[Nodes] Could not save cleanup tracking', error));
+    void this.save().catch(error => console.warn('[FileClass Inline] Could not save cleanup tracking', error));
     this.onResolved();
   }
   forget(path: string): void {
     if (!this.tracked[path]) return;
     delete this.tracked[path]; this.observed.delete(path);
-    void this.save().catch(error => console.warn('[Nodes] Could not save cleanup tracking', error));
+    void this.save().catch(error => console.warn('[FileClass Inline] Could not save cleanup tracking', error));
   }
   forgetBySource(path: string): void {
     for (const item of Object.values(this.tracked)) if (item.sourcePath === path) this.forget(item.path);
@@ -100,7 +100,7 @@ export class PruneManager {
               await this.app.vault.read(node) !== item.content || hasLinks(this.app, item.path)) continue;
           await this.app.vault.trash(node, false);
           this.forget(item.path);
-        } catch (error) { console.warn(`[Nodes] Could not check unused node ${item.path}`, error); }
+        } catch (error) { console.warn(`[FileClass Inline] Could not check unused node ${item.path}`, error); }
       }
     } finally { this.checking = false; }
   }
