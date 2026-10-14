@@ -3,17 +3,15 @@
 Available on the enabled `fileclass-inline` plugin instance as `plugin.api`. Check that the plugin exists and `api?.version === 1`; do not require FileClass Inline or import its private classes. The API is available after FileClass Inline loads. Retained references are safe after unload: reads return empty arrays/null and creation resolves null. Feature-detect again after re-enabling.
 
 ```ts
-type Color = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
 interface NodeResult {
   path: string;
   title: string;
   type: string;
   aliases: string[];
-  color?: Color;
 }
 interface FileClassInlineApi {
   readonly version: 1;
-  listTypes(): Array<{ type: string; label: string; color?: Color }>;
+  listTypes(): Array<{ type: string; label: string }>;
   searchNodes(query: string): NodeResult[];
   createNode(options: {
     type?: string;
@@ -30,7 +28,7 @@ interface FileClassInlineApi {
 ```
 
 - Paths are exact vault-relative Markdown paths including `.md`. Titles are filenames without `.md`; aliases exclude the title. Results are independent snapshots.
-- Reads rebuild the node index from Obsidian's current metadata snapshot. Like Obsidian itself, externally edited files become visible after the host parses their metadata. Types/labels/colors use current schema metadata, not a color captured when a node was created. Duplicate or invalid schema metadata is excluded; creation additionally validates the full schema/template from a fresh vault read.
+- Reads rebuild the node index from Obsidian's current metadata snapshot. Like Obsidian itself, externally edited files become visible after the host parses their metadata. Types and labels use current schema metadata. Duplicate or invalid schema metadata is excluded; creation additionally validates the full schema/template from a fresh vault read.
 - Search matches titles and aliases using the existing ranked fuzzy search, with no API result limit. Empty query lists nodes. `getNode` returns null for missing, untyped, or out-of-folder notes. Recently API-created nodes are available immediately, even before the metadata cache catches up.
 - Creation always opens the existing schema-aware form (required fields, defaults, link fields, and templates). Omitting `type` opens the type chooser first. `suggestedTitle` is editable, not silently accepted. Unknown types/no usable schemas return null with a notice.
 - `sourcePath` is optional caller context, reserved for future use in v1; it does not insert a link, open an editor, set properties, or establish cleanup provenance. Callers own any subsequent linking.

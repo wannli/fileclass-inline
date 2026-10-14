@@ -1,9 +1,8 @@
 import { App, parseYaml } from 'obsidian';
-import { isHighlightColor, type HighlightColor } from './highlight';
 
 export type FieldKind = 'text' | 'number' | 'checkbox' | 'date' | 'select' | 'link' | 'text-list';
 export interface Field { kind: FieldKind; requiredOnCreate?: boolean; default?: unknown; options?: string[]; targetType?: string }
-export interface NodeSchema { nodeSchema: number; nodeType: string; label: string; highlight?: HighlightColor; properties: Record<string, Field>; template: string; path: string }
+export interface NodeSchema { nodeSchema: number; nodeType: string; label: string; properties: Record<string, Field>; template: string; path: string }
 export interface Diagnostic { path: string; message: string }
 export interface Catalog { schemas: NodeSchema[]; diagnostics: Diagnostic[] }
 const kinds = new Set(['text', 'number', 'checkbox', 'date', 'select', 'link', 'text-list']);
@@ -34,8 +33,7 @@ export function validateSchema(meta: unknown, template: string, path: string): {
   if (meta.nodeSchema !== 1) errors.push('nodeSchema: expected 1');
   if (typeof meta.nodeType !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(meta.nodeType)) errors.push('nodeType: expected stable type ID');
   if (meta.label !== undefined && (typeof meta.label !== 'string' || !meta.label.trim())) errors.push('label: expected text');
-  if (meta.highlight !== undefined && !isHighlightColor(meta.highlight)) errors.push('highlight: use red, orange, yellow, green, blue, or purple');
-  for (const key of Object.keys(meta)) if (!['nodeSchema', 'nodeType', 'label', 'highlight', 'properties'].includes(key)) errors.push(`${key}: unknown schema setting`);
+  for (const key of Object.keys(meta)) if (!['nodeSchema', 'nodeType', 'label', 'properties'].includes(key)) errors.push(`${key}: unknown schema setting`);
   if (meta.properties !== undefined && !object(meta.properties)) errors.push('properties: expected mapping');
   const properties: Record<string, Field> = Object.create(null);
   if (object(meta.properties)) for (const [name, definition] of Object.entries(meta.properties)) {
@@ -58,7 +56,7 @@ export function validateSchema(meta: unknown, template: string, path: string): {
   }
   if (errors.length) return { errors };
   return { errors, schema: { nodeSchema: meta.nodeSchema as number, nodeType: meta.nodeType as string, label: (meta.label as string | undefined) ?? meta.nodeType as string,
-    highlight: meta.highlight as HighlightColor | undefined, properties, template, path } };
+    properties, template, path } };
 }
 
 /** Fresh vault reads keep schema changes live, without an extra observer or stale metadata. */

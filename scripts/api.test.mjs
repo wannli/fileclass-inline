@@ -29,7 +29,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 function fixture() {
   const schema = { path: 'Schemas/person.md', basename: 'person' };
   const file = { path: 'Nodes/Ada.md', basename: 'Ada' };
-  const meta = { nodeSchema: 1, nodeType: 'person', label: 'Person', highlight: 'green' };
+  const meta = { nodeSchema: 1, nodeType: 'person', label: 'Person' };
   const files = [schema, file];
   const app = { vault: { getMarkdownFiles: () => files, getAbstractFileByPath: path => files.find(file => file.path === path),
     cachedRead: async () => `---\n${JSON.stringify(meta)}\n---\n# {{title}}` },
@@ -42,18 +42,16 @@ function fixture() {
   const api = new PublicFileClassInlineApi(app, index, () => settings, { track: (...args) => tracked.push(args) });
   return { api, app, meta, files, file, settings, tracked, rebuilds: () => rebuilds };
 }
-test('versioned snapshots expose paths, aliases and live colors without leaking mutations', () => {
+test('versioned snapshots expose paths and aliases without leaking mutations', () => {
   const f = fixture();
   assert.equal(f.api.version, 1);
-  assert.deepEqual(f.api.listTypes(), [{ type: 'person', label: 'Person', color: 'green' }]);
-  assert.deepEqual(f.api.searchNodes('Ada')[0], { path: 'Nodes/Ada.md', title: 'Ada', type: 'person', aliases: ['Countess'], color: 'green' });
+  assert.deepEqual(f.api.listTypes(), [{ type: 'person', label: 'Person' }]);
+  assert.deepEqual(f.api.searchNodes('Ada')[0], { path: 'Nodes/Ada.md', title: 'Ada', type: 'person', aliases: ['Countess'] });
   f.api.getNode(f.file.path).aliases.push('bad');
-  f.meta.highlight = 'purple';
   assert.deepEqual(f.api.getNode(f.file.path).aliases, ['Countess']);
-  assert.equal(f.api.getNode(f.file.path).color, 'purple');
   f.files.pop();
   assert.equal(f.api.getNode(f.file.path), null);
-  assert.ok(f.rebuilds() >= 4);
+  assert.ok(f.rebuilds() >= 3);
 });
 test('type picker cancellation and form cancellation resolve null', async () => {
   const { api, app } = fixture();
@@ -100,14 +98,6 @@ for (const folder of ['nodesFolder', 'schemasFolder']) test(`changing ${folder} 
   settings[folder] = 'Changed';
   assert.equal(app.dialog.alive(), false);
   assert.equal(await pending, null);
-});
-test('search derives colors once per call, not once per result', () => {
-  const { api } = fixture();
-  let calls = 0;
-  const original = api.listTypes.bind(api);
-  api.listTypes = () => { calls++; return original(); };
-  api.searchNodes('');
-  assert.equal(calls, 1);
 });
 test('caller abort closes its form and invalidates pending creation', async () => {
   const { api, app } = fixture();

@@ -24,7 +24,6 @@ Put a schema in `Schemas/person.md`:
 nodeSchema: 1
 nodeType: person
 label: Person
-highlight: green
 properties:
   status:
     kind: select
@@ -47,7 +46,6 @@ To link tasks to existing projects and people, add `Schemas/task.md`:
 nodeSchema: 1
 nodeType: task
 label: Task
-highlight: orange
 properties:
   project:
     kind: link
@@ -67,13 +65,11 @@ properties:
 Each task needs a project; the assignee can be left empty. Both fields are direct, type-filtered dropdowns showing only node names (no tag or path); an optional link can be unset from the same dropdown. Ordinary Obsidian backlinks show the relationship on the project and person notes.
 
 - **FileClass Inline: Create node** picks a schema, prompts for a filename and required properties, then creates a normal Markdown file in `Nodes/`. Press **Ctrl+Enter** (or **⌘+Enter** on Mac) to submit the creation form. The schema's `nodeType: person` becomes `type: person`; its numeric `nodeSchema: 1` becomes `schema: 1`. Both properties are plugin-owned and cannot be redefined under `properties`. `false` and `0` count as filled values; cleared optional defaults are omitted. Cancel before submission creates nothing.
-- Type `@` plus a node name to choose an existing fuzzy match or **Create…**. Picker rows show `Ada Lovelace #person` on one line; the tag takes its schema's highlight color as a subtle background (or stays muted when no color is set), without an emoji. Choose with your keyboard or tap; new links use the shortest unambiguous wikilink (such as `[[Ada Lovelace]]`, with a folder only when needed). The symbol can be changed in settings.
+- Type `@` plus a node name to choose an existing fuzzy match or **Create…**. Picker rows show `Ada Lovelace #person` on one line. Choose with your keyboard or tap; new links use the shortest unambiguous wikilink (such as `[[Ada Lovelace]]`, with a folder only when needed). The symbol can be changed in settings.
 - Select text and type `@`: the selection stays intact while FileClass Inline searches existing names and aliases. If there are matches, choose an existing node or **Create…**; if there are none, choose a schema/type and create one. A one-line selection becomes the draft title and, when linked, keeps its original wording as the label. For a multi-line selection, FileClass Inline prompts for a title and copies the full selection into the new node before replacing the original text with its link (it never silently discards multiple lines to link an existing note).
 - **FileClass Inline: Create or link node** (also in the editor menu) provides the same selected-text flow. With no selection, it searches from the cursor. Add the command to Obsidian's mobile toolbar as a fallback if a software keyboard does not deliver `@` as a normal text input.
 - **FileClass Inline: Check schemas** displays invalid YAML/schema and property-kind conflicts, with buttons to open affected files.
 - Typed nodes are only Markdown files under `Nodes/` with a scalar `type` property. A missing schema doesn't hide existing nodes from search. Settings can change the folder paths without moving files.
-
-Optional schema `highlight` uses Obsidian's six native colored-highlight names: `red` 🔴, `orange` 🟠, `yellow` 🟡, `green` 🟢, `blue` 🔵, `purple` 🟣. When a link is completed, FileClass Inline writes normal Obsidian colored-highlight Markdown around it—for example, `==🟢[[Wannes]]==`. This stays highlighted without the plugin. A missing/invalid type schema leaves links uncolored. Changing a schema's color affects future links only; existing notes are not silently rewritten.
 
 Supported property kinds: `text`, `number`, `checkbox`, `date`, `select`, `link`, `text-list`. `requiredOnCreate` and type-appropriate `default` are optional. A link property optionally specifies `targetType` and uses a direct dropdown of existing typed nodes; recursive creation within a field is not supported. Fields are flat YAML Properties; Obsidian native property types are vault-wide. Templates support literal `{{title}}`, `{{date}}` (local YYYY-MM-DD), and `{{property:fieldname}}`. No arbitrary code or external template plugin is needed. YAML-authored schemas are the permanent interface.
 
@@ -101,23 +97,3 @@ Reader and other plugins can use the versioned public `plugin.api` surface to di
 - `dist/` — gitignored release output from `npm run build` (`main.js` and `manifest.json`; no vault data or Hot Reload marker).
 
 The setup script never removes vault data. To reset the disposable vault, close it in Obsidian first and remove `dummy-vault/` yourself.
-
-## Releases
-
-The GitHub Actions pipeline follows `obsidian-reader2`: Release Please manages version/changelog PRs, then attaches checked plugin assets to a draft release before publishing.
-
-Enable **Allow GitHub Actions to create and approve pull requests** in the repository's Actions settings. Pushes to `main` run checks and update the release PR. The default GitHub token cannot trigger PR CI; a human can close and reopen that PR to trigger checks. Merging a release PR publishes the release and requires Wannes's approval—do not auto-merge or tag manually.
-
-Release Please owns package, lockfile, plugin version, and changelog updates. `0.1.0` is the initial baseline, not a published release. Update `versions.json` only when the minimum Obsidian version changes, preserving earlier entries. If publication fails, inspect the draft and logs; do not overwrite assets or move tags automatically.
-
-Approved Conventional Commit scopes are **`main`** (core work), **`schemas`**, and **`ui`**. Other scopes require Wannes's approval.
-
-Run `npm run check` for metadata validation, typechecking, release-tooling tests, and a production build. These checks do not prove native Obsidian behavior.
-
-### Install a release
-
-Requires Obsidian **1.5.0 or later**. The manifest allows desktop and mobile; native-device compatibility still needs verification.
-
-Download `main.js` and `manifest.json` from a published GitHub release into `<vault>/.obsidian/plugins/fileclass-inline/` (create the folder if needed). Enable **FileClass Inline** under Community plugins. To update, replace those files and reload Obsidian. Do not install GitHub's source archives as plugin assets.
-
-Versions through 0.3.1 used the plugin ID `obsidian-nodes` and display name **Nodes**. To preserve settings when upgrading a manual installation, close Obsidian and rename the existing plugin folder from `obsidian-nodes` to `fileclass-inline` before replacing its release files. The new ID may need to be enabled again under Community plugins.

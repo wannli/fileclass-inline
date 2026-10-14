@@ -1,12 +1,11 @@
 import { App, SuggestModal } from 'obsidian';
 import { NodeIndex, type NodeHit } from './index';
 import { renderNodeSuggestion } from './suggestion-row';
-import type { HighlightColor } from './highlight';
 
 export type LinkChoice = { kind: 'existing'; hit: NodeHit } | { kind: 'create'; title: string };
 /** Same ranking as inline completion. No automatic link/creation on fuzzy matches. */
 export class LinkPicker extends SuggestModal<LinkChoice> {
-  constructor(app: App, private index: NodeIndex, private choose: (choice: LinkChoice) => void, private seed = '', private colorForType: (type: string) => HighlightColor | undefined = () => undefined) {
+  constructor(app: App, private index: NodeIndex, private choose: (choice: LinkChoice) => void, private seed = '') {
     super(app);
     this.shouldRestoreSelection = false;
     this.setPlaceholder('Find an existing node or create one');
@@ -23,7 +22,7 @@ export class LinkPicker extends SuggestModal<LinkChoice> {
   }
   renderSuggestion(choice: LinkChoice, el: HTMLElement): void {
     if (choice.kind === 'create') { el.createEl('div', { text: `Create “${choice.title}”…` }); return; }
-    renderNodeSuggestion(choice.hit, el, this.colorForType(choice.hit.entry.type));
+    renderNodeSuggestion(choice.hit, el);
   }
   onChooseSuggestion(choice: LinkChoice): void { this.choose(choice); }
 }

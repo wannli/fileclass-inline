@@ -8,13 +8,10 @@ const hit = { label: 'Ada', entry: { type: 'person', file: { path: 'Nodes/Ada.md
 function row() {
   return { spans: [], setAttribute() {}, createSpan({ text }) { const span = { text, style: {} }; this.spans.push(span); return span; } };
 }
-test('type tag uses schema color without adding an emoji or another line', () => {
-  const colored = row();
-  renderNodeSuggestion(hit, colored, 'green');
-  assert.deepEqual(colored.spans.map(span => span.text), ['Ada', '#person']);
-  assert.match(colored.spans[1].style.backgroundColor, /var\(--color-green\)/);
-  const uncolored = row();
-  renderNodeSuggestion(hit, uncolored);
-  assert.equal(uncolored.spans[1].style.color, 'var(--text-muted)');
-  assert.equal(uncolored.spans[1].style.backgroundColor, undefined);
+test('type tag is muted and stays on the suggestion row', () => {
+  const suggestion = row();
+  renderNodeSuggestion(hit, suggestion);
+  assert.deepEqual(suggestion.spans.map(span => span.text), ['Ada', '#person']);
+  assert.equal(suggestion.spans[1].style.color, 'var(--text-muted)');
+  assert.equal(suggestion.spans[1].style.backgroundColor, undefined);
 });

@@ -32,9 +32,6 @@ test('stale editor never replaces text; correct origin inserts exactly once', ()
   content = 'See Ada.';
   assert.equal(insertLink(app, origin, target, 'Ada'), true);
   assert.equal(content, 'See [[Ada]].');
-  content = 'See Ada.';
-  assert.equal(insertLink(app, capture(editor, file, { line: 0, ch: 4 }, { line: 0, ch: 7 }), target, 'Ada', 'green'), true);
-  assert.equal(content, 'See ==🟢[[Ada]]==.');
   assert.deepEqual(cursor, { line: 0, ch: content.length - 1 });
   assert.equal(focused, true);
   content = 'See Ada.';

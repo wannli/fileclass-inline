@@ -3,11 +3,10 @@ import { NodeIndex, type NodeEntry } from './index';
 import { loadSchemas, validateSchema, type NodeSchema } from './schema';
 import { CreateNodeModal, TypePicker } from './ui';
 import type { FileClassInlineSettings } from './settings';
-import type { HighlightColor } from './highlight';
 import type { PruneManager } from './prune';
 
-export interface NodeResult { path: string; title: string; type: string; aliases: string[]; color?: HighlightColor }
-export interface NodeType { type: string; label: string; color?: HighlightColor }
+export interface NodeResult { path: string; title: string; type: string; aliases: string[] }
+export interface NodeType { type: string; label: string }
 export interface CreateNodeOptions { type?: string; suggestedTitle?: string; sourcePath?: string; signal?: AbortSignal }
 export interface FileClassInlineApi {
   readonly version: 1;
@@ -36,15 +35,11 @@ export class PublicFileClassInlineApi implements FileClassInlineApi {
         return schema ? [schema] : [];
       });
     return schemas.filter(schema => schemas.filter(other => other.nodeType === schema.nodeType).length === 1)
-      .map(schema => ({ type: schema.nodeType, label: schema.label, ...(schema.highlight ? { color: schema.highlight } : {}) }))
+      .map(schema => ({ type: schema.nodeType, label: schema.label }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }
-  private colors(): Map<string, HighlightColor | undefined> {
-    return new Map(this.listTypes().map(type => [type.type, type.color]));
-  }
-  private result(entry: NodeEntry, colors: Map<string, HighlightColor | undefined>): NodeResult {
-    const color = colors.get(entry.type);
-    return { path: entry.file.path, title: entry.file.basename, type: entry.type, aliases: entry.labels.slice(1), ...(color ? { color } : {}) };
+  private result(entry: NodeEntry): NodeResult {
+    return { path: entry.file.path, title: entry.file.basename, type: entry.type, aliases: entry.labels.slice(1) };
   }
   private refresh(): void {
     this.index.setFolder(this.settings().nodesFolder);
@@ -56,23 +51,19 @@ export class PublicFileClassInlineApi implements FileClassInlineApi {
   searchNodes(query: string): NodeResult[] {
     if (!this.active) return [];
     this.refresh();
-    const colors = this.colors();
-    const results = this.index.search(query, Infinity).map(hit => this.result(hit.entry, colors));
-    for (const { result: node } of this.created.values()) if ([node.title, ...node.aliases].some(label => label.toLowerCase().includes(query.trim().toLowerCase()))) results.push(this.snapshot(node, colors));
+    const results = this.index.search(query, Infinity).map(hit => this.result(hit.entry));
+    for (const { result: node } of this.created.values()) if ([node.title, ...node.aliases].some(label => label.toLowerCase().includes(query.trim().toLowerCase()))) results.push(this.snapshot(node));
     return results;
   }
-  private snapshot(node: NodeResult, colors: Map<string, HighlightColor | undefined>): NodeResult {
-    const { color: _old, ...rest } = node;
-    const color = colors.get(node.type);
-    return { ...rest, aliases: [...node.aliases], ...(color ? { color } : {}) };
+  private snapshot(node: NodeResult): NodeResult {
+    return { ...node, aliases: [...node.aliases] };
   }
   getNode(path: string): NodeResult | null {
     if (!this.active) return null;
     this.refresh();
     const entry = this.index.all().find(node => node.file.path === path);
     const recent = this.created.get(path);
-    const colors = this.colors();
-    return entry ? this.result(entry, colors) : recent ? this.snapshot(recent.result, colors) : null;
+    return entry ? this.result(entry) : recent ? this.snapshot(recent.result) : null;
   }
   async createNodeForLink(options: CreateNodeOptions & { sourcePath: string }, link: (node: NodeResult) => Promise<void>): Promise<NodeResult | null> {
     const source = this.app.vault.getAbstractFileByPath(options.sourcePath);
@@ -128,7 +119,7 @@ export class PublicFileClassInlineApi implements FileClassInlineApi {
           if (!alive()) return;
           const meta = parseYaml(content.split('\n---\n')[0].slice(4));
           const result: NodeResult = { path: file.path, title: file.basename, type: schema.nodeType,
-            aliases: parseFrontMatterAliases(meta) ?? [], ...(schema.highlight ? { color: schema.highlight } : {}) };
+            aliases: parseFrontMatterAliases(meta) ?? [] };
           this.created.set(file.path, { file, result });
           created?.(file, content, schema, inferable);
           finish({ ...result, aliases: [...result.aliases] });
