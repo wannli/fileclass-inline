@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { AbstractInputSuggest, App, PluginSettingTab, Setting, TFolder } from 'obsidian';
 import type NodesPlugin from './main';
 
 export interface NodesSettings { nodesFolder: string; classProperty: string; trigger: string }
@@ -18,6 +18,19 @@ export function validateSettings(data: NodesSettings): string | null {
   if (typeof data.trigger !== 'string' || [...data.trigger].length !== 1 || /[\p{L}\p{N}\s\[\]\\]/u.test(data.trigger)) return 'Trigger must be one non-letter, non-digit symbol';
   return null;
 }
+export class FolderSuggest extends AbstractInputSuggest<TFolder> {
+  constructor(app: App, inputEl: HTMLInputElement) { super(app, inputEl); }
+  getSuggestions(query: string): TFolder[] {
+    const needle = query.trim().toLowerCase();
+    return this.app.vault.getAllLoadedFiles()
+      .filter((file): file is TFolder => file instanceof TFolder && !!file.path && !file.path.startsWith('.obsidian/'))
+      .filter(folder => !needle || folder.path.toLowerCase().includes(needle))
+      .sort((a, b) => a.path.localeCompare(b.path));
+  }
+  renderSuggestion(folder: TFolder, el: HTMLElement): void { el.setText(folder.path); }
+  selectSuggestion(folder: TFolder): void { this.setValue(folder.path); this.close(); }
+}
+
 /** Ignore legacy cleanup records/settings: Fileclass-created notes are never pruned. */
 export function loadSettings(stored: unknown): NodesSettings {
   const data = stored && typeof stored === 'object' ? stored as Partial<NodesSettings> : {};
@@ -33,8 +46,12 @@ export class NodesSettingsTab extends PluginSettingTab {
     containerEl.empty(); containerEl.createEl('h2', { text: 'Nodes · Fileclass companion' });
     containerEl.createEl('p', { text: 'Fileclass must be installed and enabled. Nodes uses its public API; optional fields never open a completion form.' });
     const draft = { ...this.plugin.settings };
-    new Setting(containerEl).setName('Capture folder').setDesc('New notes only. Finding existing Fileclass notes works throughout the vault.')
-      .addText(text => text.setValue(draft.nodesFolder).onChange(value => { draft.nodesFolder = value; }));
+    new Setting(containerEl).setName('Capture folder').setDesc('New notes only. Choose an existing vault folder; finding existing Fileclass notes works throughout the vault.')
+      .addText(text => {
+        text.setPlaceholder('Choose a folder').setValue(draft.nodesFolder)
+          .onChange(value => { draft.nodesFolder = value; });
+        new FolderSuggest(this.app, text.inputEl);
+      });
     new Setting(containerEl).setName('Class binding property').setDesc('Must match Fileclass’s “fileClass alias” setting. Default: fileClass.')
       .addText(text => text.setValue(draft.classProperty).onChange(value => { draft.classProperty = value; }));
     new Setting(containerEl).setName('Inline trigger').setDesc('Default: @')
