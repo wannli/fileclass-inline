@@ -1,119 +1,122 @@
-# Nodes — Obsidian plugin development
+# Nodes — a Fileclass companion for Obsidian
 
-Typed Markdown nodes in Obsidian, with YAML schemas, validated creation, and fuzzy linking of names and aliases. Includes an isolated local development vault.
+Find, create, and reference typed notes without leaving your writing. **Fileclass owns the schemas; Nodes owns fuzzy finding and inline capture.** Notes remain ordinary Markdown with native YAML properties and wikilinks.
 
-## Setup
+## Requirements
+
+Install and enable [Fileclass](https://github.com/mdelobelle/fileclass) with its public API v1. Nodes feature-detects the supported API and fails safely when Fileclass is absent, disabled, or reloaded. The reviewed Fileclass release, 0.2.15, requires Obsidian 1.12.7 or later. Nodes' older manifest floor only permits loading its dependency diagnostic; it does not make Fileclass available on older hosts.
+
+No Fileclass source changes, private modal imports, separate schema engine, or Dataview dependency are needed. Fileclass uses native Bases for its query-backed choices; Nodes delegates those choices to Fileclass rather than parsing `.base` files itself.
+
+## Configure the conventions
+
+In **Settings → Nodes**:
+
+- **Capture folder:** where new notes go; default `Nodes`. Existing typed notes can be found anywhere in the vault.
+- **Class binding property:** must match Fileclass's *fileClass alias*; default `fileClass`.
+- **Inline trigger:** default `@`.
+
+Class names and icons come from Fileclass. Nodes has no class-color setting and creates no colored highlights. Existing highlighted Markdown is not rewritten.
+
+### Example Fileclass
+
+Create `Person.md` in the class folder configured in **Fileclass**, using Fileclass's editor or YAML:
+
+```yaml
+---
+icon: user-round
+fields:
+  - name: email
+    id: person-email
+    type: Input
+    options:
+      required: true
+    path: ""
+  - name: notes
+    id: person-notes
+    type: Input
+    options: {}
+    path: ""
+---
+```
+
+A newly captured note initially contains only the binding and body:
+
+```markdown
+---
+fileClass: Person
+---
+# Ada Lovelace
+```
+
+Nodes then offers `email`, because it is missing and required. The optional `notes` field never triggers or appears in this form. If there are no missing required values, no completion modal opens.
+
+## While writing
+
+- Type `@` and part of a filename or alias. Results rank exact matches, then prefixes, then fuzzy matches. Each note appears once, with its Fileclass icons and class badges.
+- Choose a result to insert an ordinary wikilink. Filenames are shortened only when the target remains unambiguous. Duplicate names/aliases show their full paths visibly, without requiring hover.
+- Choose **Create…** to capture a new note. With one available class, no class picker is needed; with several, selecting the class confirms inline creation. A valid inline title does not need a second name dialog. Invalid or colliding names require correction; existing files are never overwritten.
+- Select a name and type `@`, or use **Nodes: Create or link node** from the palette/editor menu. The original wording becomes the link label.
+- A multiline selection is copied literally into a new note before the source is replaced. It is never discarded to link an existing note. Nodes does not execute placeholders in copied text.
+- **Nodes: Create node** is the standalone flow: choose a class, confirm an editable name, and open the note.
+- Put **Create or link node** on Obsidian's mobile toolbar if a software keyboard does not deliver the inline trigger normally. No interaction depends on hovering or right-clicking.
+
+### Required-field completion
+
+Creation and linking happen **before** completion. The form displays only unresolved required fields, using Fileclass's effective definitions, choices, link candidates and validated public writes. Optional fields never cause a modal. Edit those later through Fileclass's link indicator, context menu or normal Properties UI.
+
+The initial implementation supports flat `Input`, `Number`, `Boolean`, `Date`, `Select`, `Cycle`, `Multi`, `MultiInput`, `File` and `MultiFile` fields. Unsupported required types/nested requirements are explained rather than silently considered complete. Absent optional object containers do not force their child fields into a form.
+
+- `false` and `0` are filled values. Empty required lists need at least one entry, even though Fileclass's current validator accepts some empty lists.
+- Fileclass supplies allowed values and candidate link serialization; Nodes does not guess target classes or implement a query engine.
+- Dates use raw text or date wikilinks and Fileclass's validation. Nodes shows a declared format when available, but does not guess Fileclass's hidden global date format or format/build date links.
+- Choices are filtered locally, not re-queried on each keystroke, and large lists have bounded rendering.
+- **Save required values** saves through Fileclass. Ctrl/⌘+Enter is the keyboard shortcut. Saved fields are retained if another field fails.
+- **Close** leaves the created note, link and any saved properties in place. It is not rollback.
+- Writes wait briefly for metadata visibility so later dependent choices see earlier saved values. If metadata remains pending, the batch stops; retry waits without rewriting the accepted field. Dependent fields may need another pass if their available choices change.
+
+Fileclass's schema/validation semantics remain authoritative, with conservative UI checks. A candidate picker is not a general foreign-key guarantee. Native/manual edits can still leave invalid data.
+
+## Safety and scope
+
+- Fileclass confirms the new note's binding before Nodes uses it. A mismatched alias, metadata timeout or dependency failure keeps the file and explains the problem.
+- Nodes rechecks source editor/file identity, the full document snapshot and the selected range before inserting. If anything changed, the new note is kept and unrelated source text is not replaced.
+- Required-field writes check original target identity, effective field definitions and current values. A concurrently filled field is not intentionally overwritten. The public Fileclass API cannot make a cross-plugin write transactional.
+- Abort/unload stops subsequent owned work and closes owned forms. An already-started vault/Fileclass write can finish; retained notes are not silently deleted.
+- **Automatic cleanup is disabled entirely.** Legacy cleanup records are not restored. Fileclass-created notes never enter a pruning queue.
+- No Fileclass templates, destination contexts, Base-filter-derived defaults, computed properties, or arbitrary scripts are executed by Nodes' creation path. Other installed plugins' creation hooks remain outside Nodes' control.
+- Creation is not a cross-file transaction. There is no global rollback for note creation, property edits and source linking.
+
+### Performance
+
+Fuzzy finding uses an in-memory index; typing does not call Fileclass or enumerate the vault. Changed notes are refreshed incrementally. Full reconciliation is coalesced and time-sliced; Fileclass's ordinary index notifications do not cause immediate repeated full-vault scans. Public APIs do not expose every global binding-setting change, so ambiguous invalidations also receive bounded idle reconciliation. **Check Fileclass connection** explicitly reconciles the current catalog and notes.
+
+Desktop, mobile and e-ink/Boox controls use native widgets, keyboard shortcuts and touch targets; no hover-only behavior or animation is required. Automated/browser checks are not proof of real-device Boox compatibility.
+
+## Moving from the previous Nodes schema system
+
+This is a Fileclass-backed replacement, not a second schema mode. Previous `nodeSchema`/`nodeType` definitions are not read or converted automatically. Define matching Fileclasses and bind existing notes through Fileclass's supported conventions. If you reuse a `type` property, configure the same alias in both plugins and ensure its values match actual class names.
+
+No existing notes are moved, recolored, rewritten or deleted. Old `schemasFolder`, highlight and pruning settings are ignored. The integration API is now **v2** because creation/completion semantics changed; v1-only Reader integrations must be updated explicitly. See [API.md](API.md).
+
+## Local development
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
-The dev command sets up `dummy-vault/`, downloads and enables [Hot Reload](https://github.com/pjeby/hot-reload) (pinned at 0.3.1), and watches `src/`. It writes `main.js` and `manifest.json` directly to `dummy-vault/.obsidian/plugins/obsidian-nodes/`. Open **this folder's `dummy-vault/`** as a vault in Obsidian (not the repository root). If Obsidian prompts about community plugins, allow them in this disposable vault. Create a schema in `Schemas/` (example below), then run **Nodes: Create node**.
+The development command prepares a protected, gitignored `dummy-vault/`, verifies Hot Reload pinned to 0.3.1, and builds directly into its Nodes plugin folder. Open **that dummy vault**, not the repository root or a personal vault. Enable Nodes and Hot Reload there; setup does not silently enable plugins. Install/enable Fileclass separately and configure its class folder as `Classes/` to use the disposable fixtures. The setup script refuses unmarked existing vault/plugin folders.
 
-Keep `npm run dev` running while editing. Hot Reload watches the `.hotreload` marker and reloads the plugin after a successful rebuild. If you change `manifest.json`, restart `npm run dev` to sync it. Use `npm run typecheck` for TypeScript checks.
+- `npm run typecheck` — TypeScript checks.
+- `npm test` — focused behavior/lifecycle tests with mocked Obsidian APIs.
+- `npm run check` — metadata, types, tests and release build.
+- `dist/` — release assets only; no test vault or Hot Reload marker.
 
-## Using Nodes
-
-Put a schema in `Schemas/person.md`:
-
-```markdown
----
-nodeSchema: 1
-nodeType: person
-label: Person
-highlight: green
-properties:
-  status:
-    kind: select
-    options: [active, inactive]
-    default: active
-  active:
-    kind: checkbox
-    requiredOnCreate: true
-    default: true
----
-# {{title}}
-
-## Notes
-```
-
-To link tasks to existing projects and people, add `Schemas/task.md`:
-
-```markdown
----
-nodeSchema: 1
-nodeType: task
-label: Task
-highlight: orange
-properties:
-  project:
-    kind: link
-    targetType: project
-    requiredOnCreate: true
-  assignee:
-    kind: link
-    targetType: person
-  status:
-    kind: select
-    options: [todo, in-progress, done]
-    default: todo
----
-# {{title}}
-```
-
-Each task needs a project; the assignee can be left empty. Both fields are direct, type-filtered dropdowns showing only node names (no tag or path); an optional link can be unset from the same dropdown. Ordinary Obsidian backlinks show the relationship on the project and person notes.
-
-- **Nodes: Create node** picks a schema, prompts for a filename and required properties, then creates a normal Markdown file in `Nodes/`. Press **Ctrl+Enter** (or **⌘+Enter** on Mac) to submit the creation form. The schema's `nodeType: person` becomes `type: person`; its numeric `nodeSchema: 1` becomes `schema: 1`. Both properties are plugin-owned and cannot be redefined under `properties`. `false` and `0` count as filled values; cleared optional defaults are omitted. Cancel before submission creates nothing.
-- Type `@` plus a node name to choose an existing fuzzy match or **Create…**. Picker rows show `Ada Lovelace #person` on one line; the tag takes its schema's highlight color as a subtle background (or stays muted when no color is set), without an emoji. Choose with your keyboard or tap; new links use the shortest unambiguous wikilink (such as `[[Ada Lovelace]]`, with a folder only when needed). The symbol can be changed in settings.
-- Select text and type `@`: the selection stays intact while Nodes searches existing names and aliases. If there are matches, choose an existing node or **Create…**; if there are none, choose a schema/type and create one. A one-line selection becomes the draft title and, when linked, keeps its original wording as the label. For a multi-line selection, Nodes prompts for a title and copies the full selection into the new node before replacing the original text with its link (it never silently discards multiple lines to link an existing note).
-- **Nodes: Create or link node** (also in the editor menu) provides the same selected-text flow. With no selection, it searches from the cursor. Add the command to Obsidian's mobile toolbar as a fallback if a software keyboard does not deliver `@` as a normal text input.
-- **Nodes: Check schemas** displays invalid YAML/schema and property-kind conflicts, with buttons to open affected files.
-- Nodes are only Markdown files under `Nodes/` with a scalar `type` property. A missing schema doesn't hide existing nodes from search. Settings can change the folder paths without moving files.
-
-Optional schema `highlight` uses Obsidian's six native colored-highlight names: `red` 🔴, `orange` 🟠, `yellow` 🟡, `green` 🟢, `blue` 🔵, `purple` 🟣. When a link is completed, Nodes writes normal Obsidian colored-highlight Markdown around it—for example, `==🟢[[Wannes]]==`. This stays highlighted without the plugin. A missing/invalid type schema leaves links uncolored. Changing a schema's color affects future links only; existing notes are not silently rewritten.
-
-Supported property kinds: `text`, `number`, `checkbox`, `date`, `select`, `link`, `text-list`. `requiredOnCreate` and type-appropriate `default` are optional. A link property optionally specifies `targetType` and uses a direct dropdown of existing typed nodes; recursive creation within a field is not supported. Fields are flat YAML Properties; Obsidian native property types are vault-wide. Templates support literal `{{title}}`, `{{date}}` (local YYYY-MM-DD), and `{{property:fieldname}}`. No arbitrary code or external template plugin is needed. YAML-authored schemas are the permanent interface.
-
-Filename collisions never overwrite. If the source editor changes while a creation form is open, the created node is kept but no unsafe link insertion occurs. Existing properties aren't silently migrated when a schema changes. Fuzzy matching uses character-sequence matching, not AI/semantic search.
-
-### Cleaning up unused nodes
-
-When a link-created node loses its last link, Nodes can move it to **Obsidian’s local trash** in the background after a short delay. This only applies to nodes created by this plugin **while inserting a link**, whose content is byte-for-byte unchanged from creation and whose values came solely from the schema/defaults. Nodes with any user-entered properties, copied multi-line text, outgoing links, another incoming link, or a changed schema are kept. Standalone-created and pre-existing notes are never tracked. Cleanup also waits for resolved links and refuses to act on open nodes or while an editor has unsaved changes. Disabling the plugin or cleanup before the link disappears fails safe rather than deleting a backlog on restart.
-
-Cleanup is enabled by default and can be turned off in **Settings → Nodes → Clean up unused nodes**. It never permanently deletes: recover a moved note from the vault’s `.trash/` folder. The plugin stores a small record of eligible generated nodes in its own settings data; removing that data disables cleanup of those nodes rather than guessing what to remove.
-
-**Verification:** Automated checks validate metadata, types, focused core behavior, and build assets. Native desktop/mobile use still needs an in-app smoke check; `isDesktopOnly: false` is not evidence of real-device verification.
-
-## Optional integrations
-
-Reader and other plugins can use the versioned public `plugin.api` surface to discover types, search/read nodes, and open standalone creation forms without inserting editor links. See [API.md](API.md) for the v1 contract, lifecycle, and cancellation behavior.
-
-## Files
-
-- `src/main.ts` — plugin entry point.
-- `manifest.json` — Obsidian plugin ID, name and version.
-- `scripts/setup-dev-vault.mjs` — idempotent vault setup; refuses unmarked existing vault/plugin folders.
-- `scripts/build.mjs` — dev watcher or release build.
-- `dummy-vault/` — local, gitignored test vault (never use a personal vault here).
-- `dist/` — gitignored release output from `npm run build` (`main.js` and `manifest.json`; no vault data or Hot Reload marker).
-
-The setup script never removes vault data. To reset the disposable vault, close it in Obsidian first and remove `dummy-vault/` yourself.
+Native Obsidian and real-device smoke checks are still needed after UI/lifecycle changes. See [VERIFICATION.md](VERIFICATION.md) for completed checks and device limitations.
 
 ## Releases
 
-The GitHub Actions pipeline follows `obsidian-reader2`: Release Please manages version/changelog PRs, then attaches checked plugin assets to a draft release before publishing.
+Release Please manages versions and changelogs; do not bump or tag manually. Merging a release PR requires Wannes's approval. Approved Conventional Commit scopes are `main`, `schemas`, and `ui`; ask before using others.
 
-Enable **Allow GitHub Actions to create and approve pull requests** in the repository's Actions settings. Pushes to `main` run checks and update the release PR. The default GitHub token cannot trigger PR CI; a human can close and reopen that PR to trigger checks. Merging a release PR publishes the release and requires Wannes's approval—do not auto-merge or tag manually.
-
-Release Please owns package, lockfile, plugin version, and changelog updates. `0.1.0` is the initial baseline, not a published release. Update `versions.json` only when the minimum Obsidian version changes, preserving earlier entries. If publication fails, inspect the draft and logs; do not overwrite assets or move tags automatically.
-
-Approved Conventional Commit scopes are **`main`** (core work), **`schemas`**, and **`ui`**. Other scopes require Wannes's approval.
-
-Run `npm run check` for metadata validation, typechecking, release-tooling tests, and a production build. These checks do not prove native Obsidian behavior.
-
-### Install a release
-
-Requires Obsidian **1.5.0 or later**. The manifest allows desktop and mobile; native-device compatibility still needs verification.
-
-Download `main.js` and `manifest.json` from a published GitHub release into `<vault>/.obsidian/plugins/obsidian-nodes/` (create the folder if needed). Enable **Nodes** under Community plugins. To update, replace those files and reload Obsidian. Do not install GitHub's source archives as plugin assets.
+Install `main.js` and `manifest.json` from a published release into `<vault>/.obsidian/plugins/obsidian-nodes/`, and enable Nodes plus a compatible Fileclass. GitHub source archives are not installable plugin releases.

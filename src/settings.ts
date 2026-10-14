@@ -1,44 +1,50 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import type NodesPlugin from './main';
 
-export interface NodesSettings { nodesFolder: string; schemasFolder: string; trigger: string; cleanupOrphans: boolean }
-export const DEFAULT_SETTINGS: NodesSettings = { nodesFolder: 'Nodes', schemasFolder: 'Schemas', trigger: '@', cleanupOrphans: true };
+export interface NodesSettings { nodesFolder: string; classProperty: string; trigger: string }
+export const DEFAULT_SETTINGS: NodesSettings = {
+  nodesFolder: 'Nodes', classProperty: 'fileClass', trigger: '@',
+};
 
 export function validateFolder(value: string): string | null {
-  if (typeof value !== 'string' || !value || value !== value.trim() || value.startsWith('/') || value.endsWith('/') || value.includes('\\')) return 'Use a vault-relative folder, without surrounding slashes or spaces';
+  if (typeof value !== 'string' || !value || value !== value.trim() || value.startsWith('/') || value.endsWith('/') || value.includes('\\')) return 'Use a vault-relative folder without surrounding slashes or spaces';
   if (value.split('/').some(part => !part || part === '.' || part === '..' || part === '.obsidian' || /[\\:*?"<>|\x00-\x1f]/.test(part))) return 'Folder contains an invalid segment';
   return null;
 }
 export function validateSettings(data: NodesSettings): string | null {
-  const invalid = validateFolder(data.nodesFolder) ?? validateFolder(data.schemasFolder);
+  const invalid = validateFolder(data.nodesFolder);
   if (invalid) return invalid;
-  if (data.nodesFolder === data.schemasFolder || data.nodesFolder.startsWith(`${data.schemasFolder}/`) || data.schemasFolder.startsWith(`${data.nodesFolder}/`)) return 'Node and schema folders must not overlap';
+  if (typeof data.classProperty !== 'string' || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(data.classProperty) || ['__proto__', 'prototype', 'constructor'].includes(data.classProperty)) return 'Use a simple property name matching Fileclass’s fileClass alias';
   if (typeof data.trigger !== 'string' || [...data.trigger].length !== 1 || /[\p{L}\p{N}\s\[\]\\]/u.test(data.trigger)) return 'Trigger must be one non-letter, non-digit symbol';
-  if (typeof data.cleanupOrphans !== 'boolean') return 'Unused-node cleanup must be on or off';
   return null;
+}
+/** Ignore legacy cleanup records/settings: Fileclass-created notes are never pruned. */
+export function loadSettings(stored: unknown): NodesSettings {
+  const data = stored && typeof stored === 'object' ? stored as Partial<NodesSettings> : {};
+  const result = { ...DEFAULT_SETTINGS };
+  for (const key of Object.keys(result) as (keyof NodesSettings)[]) if (typeof data[key] === 'string') result[key] = data[key]!;
+  return validateSettings(result) ? { ...DEFAULT_SETTINGS } : result;
 }
 
 export class NodesSettingsTab extends PluginSettingTab {
   constructor(app: App, private plugin: NodesPlugin) { super(app, plugin); }
   display(): void {
-    const { containerEl } = this; containerEl.empty();
-    containerEl.createEl('h2', { text: 'Nodes' });
+    const { containerEl } = this;
+    containerEl.empty(); containerEl.createEl('h2', { text: 'Nodes · Fileclass companion' });
+    containerEl.createEl('p', { text: 'Fileclass must be installed and enabled. Nodes uses its public API; optional fields never open a completion form.' });
     const draft = { ...this.plugin.settings };
-    new Setting(containerEl).setName('Node folder').setDesc('Vault-relative folder, default Nodes')
+    new Setting(containerEl).setName('Capture folder').setDesc('New notes only. Finding existing Fileclass notes works throughout the vault.')
       .addText(text => text.setValue(draft.nodesFolder).onChange(value => { draft.nodesFolder = value; }));
-    new Setting(containerEl).setName('Schema folder').setDesc('Vault-relative folder, default Schemas')
-      .addText(text => text.setValue(draft.schemasFolder).onChange(value => { draft.schemasFolder = value; }));
-    new Setting(containerEl).setName('Inline trigger').setDesc('Default @')
+    new Setting(containerEl).setName('Class binding property').setDesc('Must match Fileclass’s “fileClass alias” setting. Default: fileClass.')
+      .addText(text => text.setValue(draft.classProperty).onChange(value => { draft.classProperty = value; }));
+    new Setting(containerEl).setName('Inline trigger').setDesc('Default: @')
       .addText(text => text.setValue(draft.trigger).onChange(value => { draft.trigger = value; }));
-    new Setting(containerEl).setName('Clean up unused nodes')
-      .setDesc('Move only pristine, plugin-created, unreferenced nodes to Obsidian’s local trash. Never permanently delete.')
-      .addToggle(toggle => toggle.setValue(draft.cleanupOrphans).onChange(value => { draft.cleanupOrphans = value; }));
+    containerEl.createEl('p', { text: 'No automatic cleanup, template execution, schema conversion, or changes to existing notes. Required-field edits save to an already-created note.' });
     const message = containerEl.createEl('p', { attr: { role: 'alert' } });
     new Setting(containerEl).addButton(button => button.setButtonText('Save').setCta().onClick(async () => {
       const error = validateSettings(draft);
       if (error) { message.setText(error); return; }
-      await this.plugin.saveSettings(draft);
-      message.setText('Settings saved. Existing files were not moved.');
+      await this.plugin.saveSettings(draft); message.setText('Settings saved. Existing files were not moved or rewritten.');
     }));
   }
 }

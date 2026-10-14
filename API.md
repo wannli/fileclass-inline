@@ -1,49 +1,83 @@
-# Optional integration API (version 1)
+# Nodes integration API — version 2
 
-Available on the enabled `obsidian-nodes` plugin instance as `plugin.api`. Check that the plugin exists and `api?.version === 1`; do not require Nodes or import its private classes. The API is available after Nodes loads. Retained references are safe after unload: reads return empty arrays/null and creation resolves null. Feature-detect again after re-enabling.
+Available on the enabled `obsidian-nodes` instance as `plugin.api`. Feature-detect `api?.version === 2`. Do not import Nodes or Fileclass implementation classes.
+
+**Version 2 is intentional:** types now mean Fileclass classes; capture creates the note before required-field completion; linked creation invokes its callback before that completion UI; and no creation is eligible for automatic pruning. A v1-only Reader integration must not silently opt into these changed semantics.
 
 ```ts
-type Color = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
 interface NodeResult {
   path: string;
   title: string;
   type: string;
+  classes: string[];
   aliases: string[];
-  color?: Color;
+  icon?: string;
 }
 interface NodesApi {
-  readonly version: 1;
-  listTypes(): Array<{ type: string; label: string; color?: Color }>;
+  readonly version: 2;
+  listTypes(): Array<{ type: string; label: string; icon?: string }>;
   searchNodes(query: string): NodeResult[];
+  getNode(path: string): NodeResult | null;
   createNode(options: {
     type?: string;
     suggestedTitle?: string;
     sourcePath?: string;
     signal?: AbortSignal;
   }): Promise<NodeResult | null>;
-  getNode(path: string): NodeResult | null;
   createNodeForLink?(
-    options: { type?: string; suggestedTitle?: string; sourcePath: string; signal?: AbortSignal },
+    options: {
+      type?: string;
+      suggestedTitle?: string;
+      sourcePath: string;
+      signal?: AbortSignal;
+    },
     link: (node: NodeResult) => Promise<void>
   ): Promise<NodeResult | null>;
 }
 ```
 
-- Paths are exact vault-relative Markdown paths including `.md`. Titles are filenames without `.md`; aliases exclude the title. Results are independent snapshots.
-- Reads rebuild the node index from Obsidian's current metadata snapshot. Like Obsidian itself, externally edited files become visible after the host parses their metadata. Types/labels/colors use current schema metadata, not a color captured when a node was created. Duplicate or invalid schema metadata is excluded; creation additionally validates the full schema/template from a fresh vault read.
-- Search matches titles and aliases using the existing ranked fuzzy search, with no API result limit. Empty query lists nodes. `getNode` returns null for missing, untyped, or out-of-folder notes. Recently API-created nodes are available immediately, even before the metadata cache catches up.
-- Creation always opens the existing schema-aware form (required fields, defaults, link fields, and templates). Omitting `type` opens the type chooser first. `suggestedTitle` is editable, not silently accepted. Unknown types/no usable schemas return null with a notice.
-- `sourcePath` is optional caller context, reserved for future use in v1; it does not insert a link, open an editor, set properties, or establish cleanup provenance. Callers own any subsequent linking.
-- Created nodes are standalone and never registered for auto-pruning. Cancellation/closing either dialog or disabling Nodes resolves null and closes pending API dialogs. No new write begins after cancellation. A vault write already in progress cannot be rolled back: a standalone file may remain if the plugin is disabled during that write.
-- Optional `signal` lets callers cancel their own request on navigation/teardown. Abort resolves null once, closes its dialog, and prevents subsequent writes; an already-aborted signal opens nothing. The abort listener is removed on every completion path. Changing node/schema folder settings invalidates an open form before its next creation step, resolving null rather than writing into an obsolete folder.
-- Validation/write errors remain visible in the form for correction/retry; cancelling still resolves null. Schema changes while a form is open require reopening it.
+## Reads and identity
 
-### Optional linked creation
+- Paths are exact vault-relative Markdown paths including `.md`; titles are filenames without `.md`.
+- Class names are Fileclass identifiers, including any class-name subdirectories. `label` currently equals the class name; `icon` is Fileclass's resolved class icon. There is no color field or generated highlight markup.
+- `classes` preserves Fileclass's bound-class order. For discovery, `type` is the last bound class; for creation it is the class explicitly chosen for capture. Consumers requiring a particular class should inspect `classes`, not infer a unique type from a multi-class note.
+- Results are independent snapshots. Arrays returned to callers do not mutate Nodes' index.
+- Reads are synchronous and use the event-maintained cache. They do not scan the vault or query Fileclass per call. Metadata/index updates are eventually visible; they are not a global transaction. “Check Fileclass connection” explicitly reconciles the current state.
+- Search ranks filenames and aliases using exact, prefix and fuzzy matching, returns each note once, and has no API result cap. An empty query lists indexed typed notes. Nodes are discoverable throughout the vault, not just its capture folder.
+- The API may exist before the first Fileclass index is ready. Reads initially return empty results. Missing/unsupported/disabled Fileclass also yields empty results/null. Old API references become inert after Nodes unloads; feature-detect again after reload.
 
-`createNodeForLink` is an additive, feature-detected v1 capability. It opens the same form, then awaits the caller's guarded link write. The callback must reject failed/uncertain writes and persist a link containing the exact returned vault-relative path **including `.md`**. Extensionless/short links are not enrolled. Do not mutate the result. Defer successful UI teardown until the operation returns; abort during creation, linking, or enrollment prevents enrollment.
+## Standalone capture
 
-Only Nodes decides eligibility, using the form's original rendered values and its existing `PruneManager`. A successful eligible creation is tracked using the existing record format; the full path is a conservative retention token (even a remaining plain-text mention prevents cleanup). Nodes still waits for a resolved link and applies its unchanged last-link, pristine-content, schema, editor, and local-trash safeguards. Failed enrollment keeps the note; it does not undo a saved link. `createNode` retains its independent standalone semantics above.
+`createNode()` uses Nodes' shared convention-based capture flow:
 
-Reader must be updated to opt in and Nodes must expose this capability. Older Nodes versions fall back to standalone creation. Existing/previously created notes are never retroactively enrolled. No new Markdown properties or persisted schema are introduced.
+1. Choose a class unless supplied or only one is available.
+2. Confirm an editable filename; `suggestedTitle` is never an unattended API write.
+3. Create a normal note in the configured capture folder, with the configured class marker.
+4. Wait briefly for Fileclass to recognize the actual note.
+5. Prompt only for unresolved required fields, then return its identity.
 
-Version 1 is the API contract version, independent of the plugin release version. Breaking signature or semantic changes require a new API version. Reader and other optional consumers must gracefully handle absence, unsupported versions, null results, and Nodes being disabled mid-flow.
+No optional fields cause a completion form. Closing required completion keeps the created note and any saved values and returns its identity. It does **not** guarantee that every required field is complete or that the note passed a comprehensive schema audit.
+
+Standalone API creation does not open an editor or insert a link. `sourcePath` is caller context, not write authority; it does not infer a destination, relation, template or class. The native standalone command separately opens its result.
+
+Unknown class, cancellation before creation, dependency errors or unrecognized binding return null with a notice where appropriate. Cancellation/failure after a write starts can leave a note even when the promise returns null; callers must not infer “no file exists” from null. Nodes preserves partial results rather than deleting them.
+
+## Linked capture
+
+`createNodeForLink()` creates and confirms binding, then invokes the supplied `link` callback **before required completion**. This lets the originating text become a link before a required-fields modal opens.
+
+- Nodes checks source file identity/path before the callback. The caller must additionally guard its own editor, selection, source content and navigation state.
+- The callback receives an independent snapshot and must reject failed/uncertain writes. Rejections propagate, including arbitrary rejection values. The target note is retained; completion does not run after a failed callback.
+- Nodes never writes the source itself through this API.
+- An aborted request or changed source identity prevents the callback. A file may already exist; it is kept.
+- There is no exact-path cleanup token requirement: **pruning is disabled for all Fileclass capture**. Linking does not grant deletion authority or establish cleanup provenance.
+
+## Cancellation and writes
+
+`signal` cancels class/name prompts and required completion. Already-aborted signals do nothing. Abort/unload/settings changes settle pending requests, close owned forms, and prevent subsequent owned stages or callbacks. A vault/Fileclass write already dispatched can finish and cannot be rolled back.
+
+Required-field writes use Fileclass's public API, check target/field freshness, preserve meaningful `false`/`0`, and wait briefly for metadata visibility. They are individual writes, not an all-or-nothing note transaction. Another plugin can still mutate data after a check or execute its own creation hooks.
+
+No arbitrary template execution, Fileclass destination-context emulation, private UI calls, schema conversion or automatic cleanup is part of this contract.
+
+The API version is independent of the Nodes release version and Fileclass's own API version. Breaking signatures or behavioral guarantees require another explicit API version.

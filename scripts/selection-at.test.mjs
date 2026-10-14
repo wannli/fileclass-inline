@@ -21,7 +21,8 @@ test('selection + @ prevents replacement; ordinary typing and IME do not', async
     getRange: () => source };
   const view = { composing: false, state: { selection: { main: { from: 0, to: 7 }, ranges: [{}] }, doc: { sliceString: () => source } }, dom: {} };
   const markdown = { file, editor, contentEl: { contains: node => node === view.dom } };
-  const app = { workspace: { activeEditor: { file, editor }, getActiveViewOfType: () => markdown } };
+  const app = { vault: { getAbstractFileByPath: path => path === file.path ? file : null },
+    workspace: { activeEditor: { file, editor }, getActiveViewOfType: () => markdown } };
   const opened = [];
   const handler = selectedAtExtension(app, () => '@', origin => opened.push(origin.source));
   assert.equal(isSelectedTriggerInput(view, 0, 7, '@', '@'), true);

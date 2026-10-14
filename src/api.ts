@@ -1,16 +1,13 @@
-import { App, Modal, Notice, parseFrontMatterAliases, parseYaml, TFile } from 'obsidian';
-import { NodeIndex, type NodeEntry } from './index';
-import { loadSchemas, validateSchema, type NodeSchema } from './schema';
-import { CreateNodeModal, TypePicker } from './ui';
-import type { NodesSettings } from './settings';
-import type { HighlightColor } from './highlight';
-import type { PruneManager } from './prune';
+import { App, TFile } from 'obsidian';
+import type { ClassInfo } from './fileclass-contract';
+import type { CaptureController, CreatedCapture } from './capture';
+import type { NodeEntry, NodeIndex } from './index';
 
-export interface NodeResult { path: string; title: string; type: string; aliases: string[]; color?: HighlightColor }
-export interface NodeType { type: string; label: string; color?: HighlightColor }
+export interface NodeResult { path: string; title: string; type: string; classes: string[]; aliases: string[]; icon?: string }
+export interface NodeType { type: string; label: string; icon?: string }
 export interface CreateNodeOptions { type?: string; suggestedTitle?: string; sourcePath?: string; signal?: AbortSignal }
 export interface NodesApi {
-  readonly version: 1;
+  readonly version: 2;
   listTypes(): NodeType[];
   searchNodes(query: string): NodeResult[];
   createNode(options: CreateNodeOptions): Promise<NodeResult | null>;
@@ -18,134 +15,49 @@ export interface NodesApi {
   createNodeForLink?(options: CreateNodeOptions & { sourcePath: string }, link: (node: NodeResult) => Promise<void>): Promise<NodeResult | null>;
 }
 
-/** Retained references become inert on disposal. Standalone creation never opts into pruning. */
+/** Version 2: Fileclass membership and post-creation completion; cleanup is never enrolled. */
 export class PublicNodesApi implements NodesApi {
-  readonly version = 1 as const;
+  readonly version = 2 as const;
   private active = true;
-  private pending = new Set<() => void>();
-  // Newly written files may not have reached MetadataCache yet.
-  private created = new Map<string, { file: TFile; result: NodeResult }>();
-  constructor(private app: App, private index: NodeIndex, private settings: () => NodesSettings, private prune?: Pick<PruneManager, 'track'>) {}
-  dispose(): void { this.active = false; for (const cancel of [...this.pending]) cancel(); this.created.clear(); }
+  constructor(private app: App, private index: NodeIndex, private types: () => ClassInfo[],
+    private capture: CaptureController, private connected: () => boolean) {}
+  dispose(): void { this.active = false; this.capture.dispose(); }
+  private alive(): boolean { return this.active && this.connected(); }
   listTypes(): NodeType[] {
-    if (!this.active) return [];
-    const schemas = this.app.vault.getMarkdownFiles()
-      .filter(file => file.path.startsWith(`${this.settings().schemasFolder}/`))
-      .flatMap(file => {
-        const schema = validateSchema(this.app.metadataCache.getFileCache(file)?.frontmatter, '', file.path).schema;
-        return schema ? [schema] : [];
-      });
-    return schemas.filter(schema => schemas.filter(other => other.nodeType === schema.nodeType).length === 1)
-      .map(schema => ({ type: schema.nodeType, label: schema.label, ...(schema.highlight ? { color: schema.highlight } : {}) }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+    return this.alive() ? this.types().map(item => ({ type: item.name, label: item.name, ...(item.icon ? { icon: item.icon } : {}) })) : [];
   }
-  private colors(): Map<string, HighlightColor | undefined> {
-    return new Map(this.listTypes().map(type => [type.type, type.color]));
+  private result(entry: NodeEntry): NodeResult {
+    const icon = this.types().find(item => item.name === entry.type)?.icon;
+    return { path: entry.file.path, title: entry.file.basename, type: entry.type, classes: [...entry.classes],
+      aliases: entry.labels.slice(1), ...(icon ? { icon } : {}) };
   }
-  private result(entry: NodeEntry, colors: Map<string, HighlightColor | undefined>): NodeResult {
-    const color = colors.get(entry.type);
-    return { path: entry.file.path, title: entry.file.basename, type: entry.type, aliases: entry.labels.slice(1), ...(color ? { color } : {}) };
-  }
-  private refresh(): void {
-    this.index.setFolder(this.settings().nodesFolder);
-    for (const [path, recent] of this.created) {
-      const file = this.app.vault.getAbstractFileByPath(path);
-      if (file !== recent.file || !path.startsWith(`${this.settings().nodesFolder}/`) || this.app.metadataCache.getFileCache(recent.file) != null) this.created.delete(path);
-    }
+  private created(record: CreatedCapture): NodeResult {
+    return { path: record.file.path, title: record.file.basename, type: record.type.name,
+      classes: [...record.classes], aliases: [...record.aliases], ...(record.type.icon ? { icon: record.type.icon } : {}) };
   }
   searchNodes(query: string): NodeResult[] {
-    if (!this.active) return [];
-    this.refresh();
-    const colors = this.colors();
-    const results = this.index.search(query, Infinity).map(hit => this.result(hit.entry, colors));
-    for (const { result: node } of this.created.values()) if ([node.title, ...node.aliases].some(label => label.toLowerCase().includes(query.trim().toLowerCase()))) results.push(this.snapshot(node, colors));
-    return results;
-  }
-  private snapshot(node: NodeResult, colors: Map<string, HighlightColor | undefined>): NodeResult {
-    const { color: _old, ...rest } = node;
-    const color = colors.get(node.type);
-    return { ...rest, aliases: [...node.aliases], ...(color ? { color } : {}) };
+    return this.alive() ? this.index.search(query, Infinity).map(hit => this.result(hit.entry)) : [];
   }
   getNode(path: string): NodeResult | null {
-    if (!this.active) return null;
-    this.refresh();
-    const entry = this.index.all().find(node => node.file.path === path);
-    const recent = this.created.get(path);
-    const colors = this.colors();
-    return entry ? this.result(entry, colors) : recent ? this.snapshot(recent.result, colors) : null;
+    if (!this.alive()) return null;
+    const entry = this.index.all().find(item => item.file.path === path);
+    return entry ? this.result(entry) : null;
+  }
+  async createNode(options: CreateNodeOptions): Promise<NodeResult | null> {
+    if (!this.alive()) return null;
+    const record = await this.capture.run(options);
+    return record && this.alive() && !options.signal?.aborted && this.app.vault.getAbstractFileByPath(record.file.path) === record.file ? this.created(record) : null;
   }
   async createNodeForLink(options: CreateNodeOptions & { sourcePath: string }, link: (node: NodeResult) => Promise<void>): Promise<NodeResult | null> {
+    if (!this.alive() || options.signal?.aborted) return null;
     const source = this.app.vault.getAbstractFileByPath(options.sourcePath);
     if (!(source instanceof TFile)) return null;
-    let candidate: { file: TFile; content: string; schema: NodeSchema } | undefined;
-    const node = await this.create(options, (file, content, schema, inferable) => {
-      if (inferable) candidate = { file, content, schema };
+    const record = await this.capture.run(options, async created => {
+      if (!this.alive() || options.signal?.aborted || source.path !== options.sourcePath || this.app.vault.getAbstractFileByPath(options.sourcePath) !== source) return false;
+      // The caller owns its editor/content guard. Pass an independent snapshot.
+      await link(this.created(created));
+      return true;
     });
-    if (!node) return null;
-    if (!this.active || options.signal?.aborted) return node;
-    const targetPath = node.path;
-    await link(node); // Failed/uncertain linking never establishes cleanup provenance.
-    const eligible = () => candidate && this.active && !options.signal?.aborted &&
-      this.app.vault.getAbstractFileByPath(options.sourcePath) === source &&
-      source.path === options.sourcePath && candidate.file.path === targetPath &&
-      this.app.vault.getAbstractFileByPath(targetPath) === candidate.file;
-    if (eligible()) {
-      // Exact path is a conservative retention token: any remaining mention keeps the node.
-      // PruneManager still requires an observed resolved link and all its usual safety fences.
-      try {
-        const content = await this.app.vault.read(source);
-        if (eligible() && content.includes(targetPath)) this.prune?.track(candidate!.file, options.sourcePath, targetPath, candidate!.content, candidate!.schema);
-      } catch (error) { console.warn('[Nodes] Link saved; cleanup enrollment skipped, node kept', error); }
-    }
-    return node;
-  }
-  createNode(options: CreateNodeOptions): Promise<NodeResult | null> { return this.create(options); }
-  private create(options: CreateNodeOptions, created?: (file: TFile, content: string, schema: NodeSchema, inferable: boolean) => void): Promise<NodeResult | null> {
-    if (!this.active || options.signal?.aborted) return Promise.resolve(null);
-    const { nodesFolder, schemasFolder } = this.settings();
-    return new Promise(resolve => {
-      let settled = false;
-      let dialog: Modal | undefined;
-      const finish = (result: NodeResult | null): void => {
-        if (settled) return;
-        settled = true; this.pending.delete(cancel);
-        options.signal?.removeEventListener('abort', cancel);
-        resolve(result);
-      };
-      const cancel = (): void => { finish(null); dialog?.close(); };
-      this.pending.add(cancel);
-      options.signal?.addEventListener('abort', cancel, { once: true });
-      const alive = (): boolean => {
-        if (!this.active || settled) return false;
-        const current = this.settings();
-        if (current.nodesFolder !== nodesFolder || current.schemasFolder !== schemasFolder) { cancel(); return false; }
-        return true;
-      };
-      const show = (schema: NodeSchema): void => {
-        if (!alive()) return;
-        this.refresh();
-        dialog = new CreateNodeModal(this.app, this.index, schema, (file, content, inferable) => {
-          if (!alive()) return;
-          const meta = parseYaml(content.split('\n---\n')[0].slice(4));
-          const result: NodeResult = { path: file.path, title: file.basename, type: schema.nodeType,
-            aliases: parseFrontMatterAliases(meta) ?? [], ...(schema.highlight ? { color: schema.highlight } : {}) };
-          this.created.set(file.path, { file, result });
-          created?.(file, content, schema, inferable);
-          finish({ ...result, aliases: [...result.aliases] });
-        }, options.suggestedTitle ?? '', nodesFolder, schemasFolder, undefined, () => finish(null), alive);
-        dialog.open();
-      };
-      void loadSchemas(this.app, schemasFolder).then(({ schemas }) => {
-        if (!alive()) return;
-        if (options.type !== undefined) {
-          const schema = schemas.find(schema => schema.nodeType === options.type);
-          if (schema) show(schema); else { new Notice('Nodes: requested type is unavailable'); finish(null); }
-        } else if (schemas.length) {
-          let chosen = false;
-          dialog = new TypePicker(this.app, schemas, schema => { chosen = true; show(schema); }, () => { if (!chosen) finish(null); });
-          dialog.open();
-        } else { new Notice('Nodes: no valid node schemas'); finish(null); }
-      }).catch(error => { if (alive()) new Notice(`Nodes: ${String(error)}`); finish(null); });
-    });
+    return record && this.alive() && !options.signal?.aborted && this.app.vault.getAbstractFileByPath(record.file.path) === record.file ? this.created(record) : null;
   }
 }
