@@ -50,7 +50,7 @@ export class CaptureController {
       const token = this.backend.token();
       const guard = (): void => {
         assertSession(this.backend, token, signal);
-        if (!this.active || JSON.stringify(settings) !== JSON.stringify(this.settings())) throw new Error('Nodes settings changed; start again');
+        if (!this.active || JSON.stringify(settings) !== JSON.stringify(this.settings())) throw new Error('FileClass Inline settings changed; start again');
       };
       const classes = await this.backend.types(); guard();
       if (!classes.length) throw new Error('No Fileclasses are available yet. Enable Fileclass, wait for its index, and define a class.');
@@ -105,7 +105,7 @@ export class CaptureController {
         }
         return signal.aborted ? null : record ?? null;
       }
-      if (!signal.aborted && this.active) new Notice(`Nodes: ${String(error)}`);
+      if (!signal.aborted && this.active) new Notice(`FileClass Inline: ${String(error)}`);
       return null;
     }
   }

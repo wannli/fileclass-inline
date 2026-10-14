@@ -177,7 +177,7 @@ test('a racing Vault.create rejection is surfaced without modifying the competin
 });
 
 test('full selected body is in the actual created file before callback, and false skips completion', async () => {
-  const f = fixture(), body = 'Full selected text\nwith [[a link|label]] and ==existing highlight==.\nLast line';
+  const f = fixture(), body = 'Full selected text\nwith [[a link|label]] and existing formatting.\nLast line';
   let callbacks = 0;
   const result = await f.capture.run({ ...inline, body }, record => {
     callbacks++;

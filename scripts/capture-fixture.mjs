@@ -36,6 +36,7 @@ const { outputFiles } = await build({
         close() { if (this.closed) return; this.closed = true; this.onClose?.(); }
       }
       export class SuggestModal extends Modal { setPlaceholder(value) { this.placeholder = value; } }
+      export class AbstractInputSuggest { constructor(app, inputEl) { this.app = app; this.inputEl = inputEl; } setValue(value) { this.value = value; } close() {} }
       export class PluginSettingTab {}
       export const setIcon = (el, icon) => { el.icon = icon; iconCalls.push({ el, icon }); };
       export class Setting {

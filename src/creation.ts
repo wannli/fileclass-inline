@@ -74,5 +74,5 @@ export async function waitForBinding(app: App, backend: FileclassBackend, file: 
     if (Date.now() >= deadline) break;
     await pause(50, signal);
   } while (true);
-  throw new Error('Fileclass has not recognized the created note. Check that Nodes’ class binding property matches Fileclass’s alias; the note has been kept');
+  throw new Error('Fileclass has not recognized the created note. Check that FileClass Inline’s class binding property matches Fileclass’s alias; the note has been kept');
 }

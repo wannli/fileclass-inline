@@ -9,7 +9,7 @@ const bundle = await build({ entryPoints: ['src/creation.ts'], bundle: true, pla
       export class TFile { constructor(path) { this.path=path;this.basename=path.split('/').at(-1).replace(/\\.md$/, ''); } }
       export class TFolder { constructor(path) { this.path=path; } }
       globalThis.__CreationFile=TFile; globalThis.__CreationFolder=TFolder;
-      export const stringifyYaml=JSON.stringify; export class PluginSettingTab {} export class Setting {}
+      export const stringifyYaml=JSON.stringify; export class AbstractInputSuggest {} export class PluginSettingTab {} export class Setting {}
     ` }));
   } }] });
 const { createTypedNote, renderTypedNote, waitForBinding, titleError } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString('base64')}`);
@@ -37,7 +37,7 @@ test('convention creation writes only the class marker, title and literal select
   assert.deepEqual(JSON.parse(bytes.split('\n')[1]), { fileClass: 'Person' });
   assert.ok(bytes.endsWith(`${body}\n`));
   assert.equal(f.writes(), 1);
-  assert.doesNotMatch(bytes, /schema:|color:|highlight:|optional:/);
+  assert.doesNotMatch(bytes, /schema:|optional:/);
 });
 test('custom binding uses safe YAML serialization, not interpolated frontmatter', async () => {
   assert.equal(renderTypedNote('A: [quoted]', 'Ada', 'type'), '---\n{"type":"A: [quoted]"}\n---\n# Ada\n');

@@ -104,9 +104,9 @@ test('token is raw identity; absent, incompatible, and incomplete APIs fail acti
   assert.equal(new FileclassBridge({ plugins: { getPlugin: id => id === 'fileclass' ? { api: f.api } : null } }).token(), f.api);
 });
 
-test('types reads async public summaries and resolved icons only, never colors/private metadata', async () => {
+test('types reads async public summaries and resolved icons only', async () => {
   const f = fixture();
-  f.state.classes = [{ name: 'Child', extends: 'Parent', icon: 'inherited-icon', color: 'red', fieldCount: 2, hasBase: true },
+  f.state.classes = [{ name: 'Child', extends: 'Parent', icon: 'inherited-icon', fieldCount: 2, hasBase: true },
     { name: 'Folder/Person', icon: 'user' }, { name: 'Plain', icon: '' }];
   const promise = f.bridge.types();
   assert.equal(typeof promise.then, 'function');

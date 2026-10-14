@@ -35,7 +35,7 @@ Verified using native editor keyboard/pointer interactions and public APIs:
 - Saving meaningful `false` and `0`, partial-save recovery and literal multiline copying.
 - Changed-source protection and callback-time target replacement protection.
 - Fileclass disconnect/reconnect and Nodes unload, including inert old API references.
-- Fileclass Lucide icons and visible full paths for ambiguous labels; no class colors or new highlights.
+- Fileclass Lucide icons and visible full paths for ambiguous labels.
 
 ### Real Bases delegation
 

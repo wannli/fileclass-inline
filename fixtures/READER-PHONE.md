@@ -8,7 +8,7 @@ Reader `/s/93635` alone applies the pack to its approved disposable vault:
 
 `/Users/wannli/code/obsidian-reader/.sandbox/Reader2 Test Vault`
 
-- Keep Fileclass and Nodes disabled while preparing settings/fixtures.
+- Keep Fileclass and FileClass Inline disabled while preparing settings/fixtures.
 - Check every destination for collisions. Do not overwrite different existing files blindly; the owner must deliberately merge settings or choose a clean fixture namespace.
 - Write the two plugin settings files **before first enable/index**, not after. Values are JSON booleans, never the strings `"false"`/`"true"`.
 - Create note/Base fixtures using Reader's correctly targeted Obsidian workflow. Use its own registered vault ID before CLI commands and guard its exact renderer/path; never reuse the companion vault ID.
@@ -16,17 +16,17 @@ Reader `/s/93635` alone applies the pack to its approved disposable vault:
 
 ## Versions and conventions
 
-- `obsidian-nodes`: unreleased companion, manifest 0.3.0, **Nodes API v2**, main SHA `8eb404269de6d3ab8dd5117f90fdc9450954df57d63a860204c67b0e559c0b0b`.
+- `fileclass-inline`: companion build, manifest 0.4.0, **FileClass Inline API v2**, main SHA `ea22905b66e03398faeca26009da47fa9603dedc3b4cecbbfdd55cb60e3a05e0`.
 - `fileclass`: official 0.2.15, **Fileclass API 1.1**, Obsidian 1.12.7+.
 - Enable the **Bases core plugin** for the project picker.
 - Fileclass class folder: `Classes/`; alias: `fileClass`.
-- Nodes capture folder: `Nodes` (no trailing slash); binding property: `fileClass`; trigger: `@`.
+- FileClass Inline capture folder: `Nodes` (no trailing slash); binding property: `fileClass`; trigger: `@`.
 - All three class schemas are standalone, with `version: "2.0"`, stable field IDs and root `path: ""`. No Task/WorkItem parent class is required.
 
 ## Ten files
 
 1. `.obsidian/plugins/fileclass/data.json`: exact audited configuration keys, including disabled Canvas engine/schema logging/bind insertion/reorder/creation popup and empty global class.
-2. `.obsidian/plugins/obsidian-nodes/data.json`: the three Nodes convention settings.
+2. `.obsidian/plugins/fileclass-inline/data.json`: the three FileClass Inline convention settings.
 3. `Classes/Person.md`: optional `notes` Input only; no required completion.
 4. `Classes/Project.md`: optional `projectTitle` Input supplies picker labels.
 5. `Classes/PhoneTask.md`: **four required fields**—`summary` Input, `completed` Boolean, `estimate` Number, `project` File—and optional `details` Input.
@@ -34,7 +34,7 @@ Reader `/s/93635` alone applies the pack to its approved disposable vault:
 7. `Projects/Borealis project.md`: Project; display label `Borealis research`.
 8. `Projects/Non-project.md`: Person; negative control with label `Should never show`.
 9. `Working/Projects.base`: table view `Projects only`, filter `fileClass == "Project"`, columns `file.name` and `note.projectTitle`, ascending filename sort.
-10. `Working/Nodes phone test.md`: short optional-capture/required-capture instructions; no changes under `Reading/`.
+10. `Working/FileClass Inline phone test.md`: short optional-capture/required-capture instructions; no changes under `Reading/`.
 
 PhoneTask's File options are exactly:
 

@@ -20,7 +20,7 @@ export class FileclassBridge implements FileclassBackend {
     if (!api || typeof api !== 'object') throw new Error('Fileclass is unavailable. Enable Fileclass with public API v1, then reopen the picker.');
     const candidate = api as Partial<PublicApi>;
     if (typeof candidate.version !== 'string' || !/^1\.\d+(?:\.\d+)?(?:-[\w.-]+)?(?:\+[\w.-]+)?$/.test(candidate.version)) {
-      throw new Error('Unsupported Fileclass API version. Nodes requires public API v1; update Fileclass, then reopen the picker.');
+      throw new Error('Unsupported Fileclass API version. FileClass Inline requires public API v1; update Fileclass, then reopen the picker.');
     }
     if (METHODS.some(method => typeof candidate[method] !== 'function')) {
       throw new Error('Fileclass public API v1 is incomplete. Update Fileclass, then reopen the picker.');

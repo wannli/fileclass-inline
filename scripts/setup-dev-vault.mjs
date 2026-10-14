@@ -11,8 +11,8 @@ const manifest = JSON.parse(await readFile(join(root, 'manifest.json'), 'utf8'))
 if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(manifest.id)) throw new Error('Invalid development plugin ID');
 const plugin = join(plugins, manifest.id);
 const hotReload = join(plugins, 'hot-reload');
-const vaultMarker = join(vault, '.obsidian-nodes-dev-vault');
-const pluginMarker = join(plugin, '.obsidian-nodes-dev-plugin');
+const vaultMarker = join(vault, '.fileclass-inline-dev-vault');
+const pluginMarker = join(plugin, '.fileclass-inline-dev-plugin');
 
 async function exists(path) {
   try { return await lstat(path); }
@@ -119,7 +119,7 @@ fields:
 ---
 # Task
 
-Summary is required. Notes are optional and never appear in Nodes' completion form.
+Summary is required. Notes are optional and never appear in FileClass Inline's completion form.
 `,
   'Nodes/Ada Lovelace.md': `---
 fileClass: Person
@@ -136,24 +136,24 @@ summary: Try Fileclass-backed capture
 
 Create a new Task to try required summary completion; optional notes stay out of the form.
 `,
-  'Start.md': `# Nodes · Fileclass companion development vault
+  'Start.md': `# FileClass Inline development vault
 
 Use this isolated dummy vault only, never a personal vault. Existing notes and
 settings are preserved; older fixtures are not migrated or removed.
 
 ## Manual setup (required)
 
-1. Use Obsidian **1.12.7 or later**. Build Nodes with npm run dev from the repository.
+1. Use Obsidian **1.12.7 or later**. Build FileClass Inline with npm run dev from the repository.
 2. Install and enable [Fileclass](https://github.com/mdelobelle/fileclass) manually
    in this vault, using a release with **public API v1** (reviewed: 0.2.15).
 3. In **Fileclass settings**, explicitly set the **class folder to Classes** and
    the **fileClass alias to fileClass**. Creating Classes/ alone does not configure
-   Fileclass. Confirm that Fileclass lists Person and Task before testing Nodes.
-4. In this vault's Community plugins settings, manually enable **Nodes** and
+   Fileclass. Confirm that Fileclass lists Person and Task before testing FileClass Inline.
+4. In this vault's Community plugins settings, manually enable **FileClass Inline** and
    **Hot Reload**. Setup downloads only pinned Hot Reload; it does not enable
    plugins, change restricted mode, install Fileclass or write Fileclass settings.
-5. Keep Nodes' capture folder **Nodes** and class binding property **fileClass**
-   (the defaults). Run **Nodes: Check Fileclass connection** to refresh the catalog.
+5. Keep FileClass Inline's capture folder **Nodes** and class binding property **fileClass**
+   (the defaults). Run **FileClass Inline: Check Fileclass connection** to refresh the catalog.
 
 ## Try the fixtures
 
@@ -163,9 +163,8 @@ settings are preserved; older fixtures are not migrated or removed.
   notes do not. Closing the form keeps the created note and any inserted link.
 - Edit optional properties later through Fileclass or Obsidian Properties.
 
-Fileclass owns class definitions in Classes/. Nodes creates ordinary Markdown
-in Nodes/ with a fileClass binding. There are no class-color or cleanup fixtures;
-Nodes does not prune captured notes. Existing notes are never overwritten by setup.
+Fileclass owns class definitions in Classes/. FileClass Inline creates ordinary Markdown
+in Nodes/ with a fileClass binding and does not prune captured notes. Existing notes are never overwritten by setup.
 `,
 };
 for (const folder of ['Classes', 'Nodes']) await mkdir(join(vault, folder), { recursive: true });
@@ -174,4 +173,4 @@ for (const [name, content] of Object.entries(seeds)) {
   catch (error) { if (error.code !== 'EEXIST') throw error; }
 }
 console.log(`Development vault ready: ${vault}`);
-console.log('Manual setup: Obsidian >=1.12.7; install/enable Fileclass public API v1, set its class folder to Classes and alias to fileClass, then enable Nodes and Hot Reload. Existing notes/settings were preserved; see Start.md for new-vault instructions.');
+console.log('Manual setup: Obsidian >=1.12.7; install/enable Fileclass public API v1, set its class folder to Classes and alias to fileClass, then enable FileClass Inline and Hot Reload. Existing notes/settings were preserved; see Start.md for new-vault instructions.');

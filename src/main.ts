@@ -69,7 +69,7 @@ export default class NodesPlugin extends Plugin {
   }
   private startSelectedOrigin(origin: Origin): void {
     if (!isOriginCurrent(this.app, origin)) return;
-    if (!this.available()) { new Notice('Nodes needs a ready Fileclass v1 index with at least one class. Run “Check Fileclass connection”.'); return; }
+    if (!this.available()) { new Notice('FileClass Inline needs a ready Fileclass v1 index with at least one class. Run “Check Fileclass connection”.'); return; }
     if (origin.source && !origin.source.trim()) { new Notice('Select text with a name to create or link a node'); return; }
     const plan = planSelection(origin.source);
     if (plan.body) { void this.startCreate(plan.query, origin, undefined, plan.body); return; }
@@ -88,25 +88,25 @@ export default class NodesPlugin extends Plugin {
       if (!this.live || this.backend.token() !== token) return;
       if (!classes.length) { new Notice('That note no longer has a Fileclass; no link was inserted.'); return; }
       insertLink(this.app, origin, hit.entry.file, label);
-    } catch (error) { if (this.live) new Notice(`Nodes: ${String(error)}`); }
+    } catch (error) { if (this.live) new Notice(`FileClass Inline: ${String(error)}`); }
   }
   async startCreate(seed: string, origin?: Origin, label?: string, body?: string): Promise<void> {
     await this.captures.run({ suggestedTitle: seed, inline: !!origin, sourcePath: origin?.path, body }, async record => {
       if (origin) return insertLink(this.app, origin, record.file, label ?? record.file.basename);
       await this.app.workspace.getLeaf(true).openFile(record.file);
       return true;
-    }).catch(error => { if (this.live) new Notice(`Nodes: ${String(error)}`); });
+    }).catch(error => { if (this.live) new Notice(`FileClass Inline: ${String(error)}`); });
   }
   private async showStatus(): Promise<void> {
     await this.cache.refresh();
     if (!this.live) return;
     const modal = new Modal(this.app);
-    modal.contentEl.createEl('h2', { text: 'Nodes · Fileclass' });
+    modal.contentEl.createEl('h2', { text: 'FileClass Inline · Fileclass' });
     try {
       this.backend.token();
       if (!this.cache.available()) throw new Error('Fileclass is enabled, but its catalog or note index could not be read. Check Fileclass and retry.');
       const classes = this.cache.types();
-      modal.contentEl.createEl('p', { text: `${classes.length} class(es), ${this.index.all().length} typed note(s). Icons come from Fileclass. No color or automatic cleanup.` });
+      modal.contentEl.createEl('p', { text: `${classes.length} class(es), ${this.index.all().length} typed note(s). Icons come from Fileclass. Automatic cleanup is disabled.` });
       if (!classes.length) modal.contentEl.createEl('p', { text: 'Fileclass may still be indexing. Define a class in Fileclass, then try again.' });
     } catch (error) { modal.contentEl.createEl('p', { text: String(error), cls: 'mod-warning' }); }
     modal.contentEl.createEl('p', { text: `Creation writes “${this.settings.classProperty}” in ${this.settings.nodesFolder}/. Match this property to Fileclass’s configured alias. Optional fields never trigger a form.` });

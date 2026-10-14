@@ -23,7 +23,7 @@ export class FolderSuggest extends AbstractInputSuggest<TFolder> {
   getSuggestions(query: string): TFolder[] {
     const needle = query.trim().toLowerCase();
     return this.app.vault.getAllLoadedFiles()
-      .filter((file): file is TFolder => file instanceof TFolder && !!file.path && !file.path.startsWith('.obsidian/'))
+      .filter((file): file is TFolder => file instanceof TFolder && !!file.path && file.path !== '.obsidian' && !file.path.startsWith('.obsidian/'))
       .filter(folder => !needle || folder.path.toLowerCase().includes(needle))
       .sort((a, b) => a.path.localeCompare(b.path));
   }
@@ -43,8 +43,8 @@ export class NodesSettingsTab extends PluginSettingTab {
   constructor(app: App, private plugin: NodesPlugin) { super(app, plugin); }
   display(): void {
     const { containerEl } = this;
-    containerEl.empty(); containerEl.createEl('h2', { text: 'Nodes · Fileclass companion' });
-    containerEl.createEl('p', { text: 'Fileclass must be installed and enabled. Nodes uses its public API; optional fields never open a completion form.' });
+    containerEl.empty(); containerEl.createEl('h2', { text: 'FileClass Inline' });
+    containerEl.createEl('p', { text: 'Fileclass must be installed and enabled. FileClass Inline uses its public API; optional fields never open a completion form.' });
     const draft = { ...this.plugin.settings };
     new Setting(containerEl).setName('Capture folder').setDesc('New notes only. Choose an existing vault folder; finding existing Fileclass notes works throughout the vault.')
       .addText(text => {

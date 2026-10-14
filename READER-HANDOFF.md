@@ -28,11 +28,11 @@ The earlier functional baseline was tested on `7e5ea5df…`. The `8eb40426…` c
 
 Source worktree: `/Users/wannli/code/obsidian-nodes-fileclass-companion`
 
-Branch: `feat/fileclass-companion`, uncommitted. This is an unreleased Nodes build; do not substitute the published 0.3.0 release merely because the manifest number matches.
+Branch: `feat/fileclass-companion`, uncommitted. This receipt predates the FileClass Inline rename; regenerate build hashes before copying current assets.
 
 | Plugin ID | Manifest version | API | Files to copy after approval |
 | --- | --- | --- | --- |
-| `obsidian-nodes` | `0.3.0` (unreleased companion build) | `2` | `dist/main.js`, `dist/manifest.json` |
+| `fileclass-inline` | `0.4.0` | `2` | `dist/main.js`, `dist/manifest.json` |
 | `fileclass` | `0.2.15` | `1.1` | `dummy-vault/.obsidian/plugins/fileclass/main.js`, `manifest.json`, `styles.css` |
 
 Fileclass requires Obsidian **1.12.7+**; both plugin manifests permit mobile. The installed Fileclass main bundle was compared byte-for-byte against the official published 0.2.15 asset.
@@ -55,7 +55,7 @@ API v2 still exposes `listTypes`, `searchNodes`, `getNode`, `createNode`, and `c
 
 Important semantics:
 
-- Types are Fileclass names, with `classes` and `icon`; no color contract.
+- Types are Fileclass names, with `classes` and `icon`.
 - Creation saves a real note before required completion.
 - `createNodeForLink` invokes Reader's guarded link callback **before** required completion.
 - Closing completion retains the note, link and saved properties; it can return an incomplete created note.

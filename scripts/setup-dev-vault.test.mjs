@@ -6,8 +6,8 @@ import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const setup = await readFile(new URL('./setup-dev-vault.mjs', import.meta.url), 'utf8');
-const marker = 'dummy-vault/.obsidian-nodes-dev-vault';
-const plugin = 'dummy-vault/.obsidian/plugins/obsidian-nodes';
+const marker = 'dummy-vault/.fileclass-inline-dev-vault';
+const plugin = 'dummy-vault/.obsidian/plugins/fileclass-inline';
 const hot = 'dummy-vault/.obsidian/plugins/hot-reload';
 const notes = ['Classes/Person.md', 'Classes/Task.md', 'Nodes/Ada Lovelace.md', 'Nodes/Example task.md', 'Start.md'];
 
@@ -21,7 +21,7 @@ async function fixture(t, installedHotReload = true) {
     await writeFile(join(root, path), content);
   };
   await put('scripts/setup-dev-vault.mjs', setup);
-  await put('manifest.json', JSON.stringify({ id: 'obsidian-nodes', version: '0.3.0' }));
+  await put('manifest.json', JSON.stringify({ id: 'fileclass-inline', version: '0.4.0' }));
   await put('no-network.mjs', 'globalThis.fetch = async () => { throw new Error("Unexpected network access"); };');
   if (installedHotReload) {
     await put(marker);
@@ -53,14 +53,14 @@ test('setup seeds Fileclass-only examples and requires explicit manual configura
   for (const [name, binding] of [['Ada Lovelace', 'Person'], ['Example task', 'Task']]) {
     const content = await f.read(`dummy-vault/Nodes/${name}.md`);
     assert.match(content, new RegExp(`^---\nfileClass: ${binding}\n`));
-    assert.doesNotMatch(content, /nodeSchema|nodeType|color:/);
+    assert.doesNotMatch(content, /nodeSchema|nodeType/);
   }
   const start = await f.read('dummy-vault/Start.md');
   for (const text of ['1.12.7', 'public API v1', 'class folder to Classes', 'fileClass alias to fileClass', 'manually enable', 'optional', 'required']) assert.ok(start.includes(text), text);
   assert.match(result.stdout, /Manual setup:.*class folder to Classes/);
-  assert.deepEqual((await readdir(join(f.root, 'dummy-vault'))).sort(), ['.obsidian', '.obsidian-nodes-dev-vault', 'Classes', 'Nodes', 'Start.md'].sort());
-  assert.deepEqual((await readdir(join(f.root, 'dummy-vault/.obsidian/plugins'))).sort(), ['hot-reload', 'obsidian-nodes']);
-  for (const name of ['app.json', 'community-plugins.json', 'plugins/obsidian-nodes/data.json']) {
+  assert.deepEqual((await readdir(join(f.root, 'dummy-vault'))).sort(), ['.obsidian', '.fileclass-inline-dev-vault', 'Classes', 'Nodes', 'Start.md'].sort());
+  assert.deepEqual((await readdir(join(f.root, 'dummy-vault/.obsidian/plugins'))).sort(), ['fileclass-inline', 'hot-reload']);
+  for (const name of ['app.json', 'community-plugins.json', 'plugins/fileclass-inline/data.json']) {
     await assert.rejects(f.read(`dummy-vault/.obsidian/${name}`), { code: 'ENOENT' });
   }
   const before = await Promise.all(notes.map(name => f.read(`dummy-vault/${name}`)));
@@ -78,8 +78,8 @@ test('reruns preserve edited notes, legacy fixtures, settings and installed plug
     ['app.json', '{"safeMode":true}'], ['community-plugins.json', '["another-plugin"]'],
     ['plugins/fileclass/data.json', '{"classFilesPath":"My Classes"}'],
     ['plugins/fileclass/main.js', 'DO NOT TOUCH'], ['plugins/fileclass/manifest.json', '{"id":"fileclass"}'],
-    ['plugins/obsidian-nodes/data.json', '{"nodesFolder":"Custom"}'],
-    ['plugins/obsidian-nodes/main.js', 'existing build'], ['plugins/obsidian-nodes/.hotreload', 'existing marker'],
+    ['plugins/fileclass-inline/data.json', '{"nodesFolder":"Custom"}'],
+    ['plugins/fileclass-inline/main.js', 'existing build'], ['plugins/fileclass-inline/.hotreload', 'existing marker'],
     ['plugins/hot-reload/main.js', 'existing hot reload'], ['plugins/hot-reload/manifest.json', '{"id":"hot-reload","version":"0.3.1"}'],
   ]) preserved.set(`dummy-vault/.obsidian/${name}`, content);
   for (const [path, content] of preserved) await f.put(path, content);

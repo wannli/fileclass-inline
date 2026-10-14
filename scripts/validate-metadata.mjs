@@ -19,8 +19,8 @@ export async function validateMetadata(directory, { refType, refName } = {}) {
   const versions = await json('versions.json');
   for (const key of ['id', 'name', 'version', 'minAppVersion', 'description', 'author'])
     assert.ok(typeof manifest[key] === 'string' && manifest[key].trim(), `Manifest ${key} must be nonempty`);
-  assert.equal(manifest.id, 'obsidian-nodes', 'Wrong plugin ID');
-  assert.equal(manifest.name, 'Nodes', 'Wrong plugin name');
+  assert.equal(manifest.id, 'fileclass-inline', 'Wrong plugin ID');
+  assert.equal(manifest.name, 'FileClass Inline', 'Wrong plugin name');
   assert.equal(typeof manifest.isDesktopOnly, 'boolean', 'Specify platform support');
   assert.match(manifest.version, semver, 'Use numeric semver');
   assert.match(manifest.minAppVersion, semver, 'Use numeric minimum host version');

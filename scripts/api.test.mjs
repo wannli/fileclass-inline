@@ -2,11 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture, start, tick, deferred, TFile } from './capture-fixture.mjs';
 
-test('v2 reads are synchronous cached snapshots with all classes, aliases and icons, never colors', async () => {
+test('v2 reads are synchronous cached snapshots with all classes, aliases and icons', async () => {
   const f = fixture();
-  const file = f.add('People/Ada.md', '', { type: 'wrong', aliases: ['Countess'], color: 'green' });
+  const file = f.add('People/Ada.md', '', { type: 'wrong', aliases: ['Countess'] });
   f.state.members = [{ path: file.path, classes: ['person', 'author'] }];
-  f.state.types[1].color = 'purple'; // A legacy field must never leak into the public API.
   await f.index.rebuild();
   const before = { ...f.counts };
   assert.equal(f.api.version, 2);

@@ -1,10 +1,10 @@
 {
   "fixtureVersion": 1,
   "plugins": {
-    "obsidian-nodes": {
-      "manifestVersion": "0.3.0",
+    "fileclass-inline": {
+      "manifestVersion": "0.4.0",
       "apiVersion": 2,
-      "mainSha256": "8eb404269de6d3ab8dd5117f90fdc9450954df57d63a860204c67b0e559c0b0b"
+      "mainSha256": "ea22905b66e03398faeca26009da47fa9603dedc3b4cecbbfdd55cb60e3a05e0"
     },
     "fileclass": {
       "manifestVersion": "0.2.15",
@@ -14,21 +14,21 @@
   },
   "verification": "Task controls and exact Base query/options are native-verified; this flattened PhoneTask combination requires Reader-owned desktop preflight before phone use.",
   "preflight": {
-    "beforeEnable": "Write safe settings while Fileclass and Nodes are disabled; do not overwrite different existing files blindly.",
+    "beforeEnable": "Write safe settings while Fileclass and FileClass Inline are disabled; do not overwrite different existing files blindly.",
     "bases": "Enable Bases core. Expect exactly Atlas & Orbit and Borealis research. Hard-fail missing/extra candidates, fallback filename labels, query/view errors or unavailable Bases: Fileclass can fall back to ALL Markdown files.",
-    "entryPoint": "Create through Nodes API v2 or native Nodes capture, not Fileclass create-note. Only Nodes promises required-only completion and no optional field insertion.",
+    "entryPoint": "Create through FileClass Inline API v2 or native FileClass Inline capture, not Fileclass create-note. Only FileClass Inline promises required-only completion and no optional field insertion.",
     "phone": "Finish syncing settings and every fixture, including the .base file, before enabling Fileclass on iPhone."
   },
   "files": {
     ".obsidian/plugins/fileclass/data.json": "{\n  \"classFilesPath\": \"Classes/\",\n  \"fileClassAlias\": \"fileClass\",\n  \"globalFileClass\": \"\",\n  \"enableCanvasEngine\": false,\n  \"enableSchemaLog\": false,\n  \"insertFieldsOnBind\": false,\n  \"reorderOnInsert\": false,\n  \"openFieldsOnCreate\": false\n}\n",
-    ".obsidian/plugins/obsidian-nodes/data.json": "{\n  \"nodesFolder\": \"Nodes\",\n  \"classProperty\": \"fileClass\",\n  \"trigger\": \"@\"\n}\n",
-    "Classes/Person.md": "---\nicon: user-round\nversion: \"2.0\"\nfields:\n  - name: notes\n    id: phone-person-notes\n    type: Input\n    options: {}\n    path: \"\"\n---\n# Person\nOptional-only class: Nodes must not show a required-fields form.\n",
+    ".obsidian/plugins/fileclass-inline/data.json": "{\n  \"nodesFolder\": \"Nodes\",\n  \"classProperty\": \"fileClass\",\n  \"trigger\": \"@\"\n}\n",
+    "Classes/Person.md": "---\nicon: user-round\nversion: \"2.0\"\nfields:\n  - name: notes\n    id: phone-person-notes\n    type: Input\n    options: {}\n    path: \"\"\n---\n# Person\nOptional-only class: FileClass Inline must not show a required-fields form.\n",
     "Classes/Project.md": "---\nicon: folder-kanban\nversion: \"2.0\"\nfields:\n  - name: projectTitle\n    id: project-title\n    type: Input\n    options: {}\n    path: \"\"\n---\n# Project\nOptional title used by the project Base view.\n",
     "Classes/PhoneTask.md": "---\nicon: link\nversion: \"2.0\"\nfields:\n  - name: summary\n    id: phone-summary\n    type: Input\n    options:\n      required: true\n    path: \"\"\n  - name: completed\n    id: phone-completed\n    type: Boolean\n    options:\n      required: true\n    path: \"\"\n  - name: estimate\n    id: phone-estimate\n    type: Number\n    options:\n      required: true\n    path: \"\"\n  - name: project\n    id: phone-project\n    type: File\n    options:\n      required: true\n      baseFile: Working/Projects.base\n      viewName: Projects only\n      displayColumn: note.projectTitle\n    path: \"\"\n  - name: details\n    id: phone-details\n    type: Input\n    options: {}\n    path: \"\"\n---\n# PhoneTask\nFour required controls in one form; details is optional and must not appear.\nNo inheritance, templates, folder/tag bindings, or field defaults.\n",
     "Projects/Atlas project.md": "---\nfileClass: Project\nprojectTitle: Atlas & Orbit\n---\n# Atlas project\n",
     "Projects/Borealis project.md": "---\nfileClass: Project\nprojectTitle: Borealis research\n---\n# Borealis project\n",
     "Projects/Non-project.md": "---\nfileClass: Person\nprojectTitle: Should never show\n---\n# Non-project\nNegative control: must never appear in PhoneTask's project picker.\n",
     "Working/Projects.base": "filters:\n  and:\n    - fileClass == \"Project\"\nviews:\n  - type: table\n    name: Projects only\n    order:\n      - file.name\n      - note.projectTitle\n    sort:\n      - property: file.name\n        direction: ASC\n",
-    "Working/Nodes phone test.md": "# Nodes phone test\n\nUse a unique title such as Phone Ada 1 for an inline optional Person capture.\n\nUse Reader's existing capture workflow to create a PhoneTask. Enter summary Phone capture, completed No (false), estimate 0, and project Atlas & Orbit. Save once.\n\nOnly the four required fields should appear; details stays absent. Reuse Reader's normal link-opening/Sync check instead of inspecting YAML manually on the phone.\n"
+    "Working/FileClass Inline phone test.md": "# FileClass Inline phone test\n\nUse a unique title such as Phone Ada 1 for an inline optional Person capture.\n\nUse Reader's existing capture workflow to create a PhoneTask. Enter summary Phone capture, completed No (false), estimate 0, and project Atlas & Orbit. Save once.\n\nOnly the four required fields should appear; details stays absent. Reuse Reader's normal link-opening/Sync check instead of inspecting YAML manually on the phone.\n"
   }
 }
