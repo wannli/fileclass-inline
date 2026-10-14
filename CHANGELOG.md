@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0](https://github.com/wannli/fileclass-inline/compare/0.4.0...0.5.0) (2026-10-14)
+
+
+### Added
+
+* **main:** integrate Fileclass backend ([7c6fb61](https://github.com/wannli/fileclass-inline/commit/7c6fb61e6f8c15fddf887eacada26132b3a9689a))
+* **main:** reconcile Fileclass integration ([d1d0230](https://github.com/wannli/fileclass-inline/commit/d1d0230c0085df2b754404f0b8f177e888532c74))
+* **main:** remove colored highlights ([bb37ca1](https://github.com/wannli/fileclass-inline/commit/bb37ca16fac8acb5d3a7a8f141123a8ae67c3521))
+* **ui:** add capture folder picker ([16dd0f6](https://github.com/wannli/fileclass-inline/commit/16dd0f6e6b58f70d2be628ee495738a1aa4eeeca))
+
 ## [0.4.0](https://github.com/wannli/obsidian-nodes/compare/0.3.1...0.4.0) (2026-10-14)
 
 
