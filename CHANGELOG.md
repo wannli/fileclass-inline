@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/wannli/fileclass-inline/compare/0.5.0...0.6.0) (2026-10-15)
+
+
+### Added
+
+* **api:** expose shared link-or-create picker ([c8d5546](https://github.com/wannli/fileclass-inline/commit/c8d55462c312538eb9e0e741513ac734ec46e10c))
+* **api:** merge shared link-or-create picker ([2db7c88](https://github.com/wannli/fileclass-inline/commit/2db7c886d4157b9587f9b22bebede6b78bd39472))
+
 ## [0.5.0](https://github.com/wannli/fileclass-inline/compare/0.4.0...0.5.0) (2026-10-14)
 
 
