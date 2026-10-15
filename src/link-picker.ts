@@ -16,13 +16,13 @@ export class LinkPicker extends SuggestModal<LinkChoice> {
   }
   getSuggestions(query: string): LinkChoice[] {
     const hits: LinkChoice[] = this.index.search(query).map(hit => ({ kind: 'existing', hit }));
-    if (query.trim()) hits.push({ kind: 'create', title: query.trim() });
+    hits.push({ kind: 'create', title: query.trim() });
     return hits;
   }
   renderSuggestion(choice: LinkChoice, el: HTMLElement): void {
     if (choice.kind === 'create') {
       styleSuggestionItem(el);
-      el.createEl('div', { text: `Create “${choice.title}”…` }); return;
+      el.createEl('div', { text: choice.title ? `Create “${choice.title}”…` : 'Create a typed note…' }); return;
     }
     renderNodeSuggestion(choice.hit, el, this.decoration, this.index.isAmbiguous(choice.hit.label));
   }

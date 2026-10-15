@@ -24,6 +24,10 @@ interface NodesApi {
     sourcePath?: string;
     signal?: AbortSignal;
   }): Promise<NodeResult | null>;
+  pickNodeForLink?(
+    options: { suggestedTitle?: string; sourcePath: string; signal?: AbortSignal },
+    link: (node: NodeResult) => Promise<void>
+  ): Promise<NodeResult | null>;
   createNodeForLink?(
     options: {
       type?: string;
@@ -61,6 +65,14 @@ No optional fields cause a completion form. Closing required completion keeps th
 Standalone API creation does not open an editor or insert a link. `sourcePath` is caller context, not write authority; it does not infer a destination, relation, template or class. The native standalone command separately opens its result.
 
 Unknown class, cancellation before creation, dependency errors or unrecognized binding return null with a notice where appropriate. Cancellation/failure after a write starts can leave a note even when the promise returns null; callers must not infer “no file exists” from null. FileClass Inline preserves partial results rather than deleting them.
+
+## Shared link-or-create picker
+
+Feature-detect optional `pickNodeForLink()` on API v2. It opens the same FileClass Inline picker used by native linking, seeded with `suggestedTitle`. Only Fileclass-typed notes are listed: there is no “All notes” mode. Empty queries and searches without matches still open the picker and include Create; they never silently create a note.
+
+Selecting an existing note rechecks its identity, Fileclass membership and backend session before calling `link` with a snapshot. Selecting Create uses the shared class chooser and capture flow, then calls `link` **before required completion**. A valid, noncolliding inline title needs no second name dialog; empty/invalid/colliding titles use the normal name prompt.
+
+The caller owns guarded source writes, including navigation/content checks. FileClass Inline verifies source identity before invoking the callback, never writes its Editor, and permits intentional source moves performed by the callback. Rejections propagate unchanged and retain the target; creation completion is skipped on link failure. Cancellation/closing returns null, including abort while awaiting an uncooperative callback; already-dispatched caller writes cannot be undone. Unload, settings changes and cache invalidation close the picker and cancel its owned continuation. Existing `createNode` and `createNodeForLink` remain unchanged.
 
 ## Linked capture
 

@@ -13,7 +13,7 @@ import { AtSuggest } from './at-suggest';
 import { FileclassCache } from './fileclass-cache';
 
 export default class NodesPlugin extends Plugin {
-  private publicApi?: NodesApi;
+  private publicApi?: PublicNodesApi;
   get api(): NodesApi | undefined { return this.publicApi; }
   index!: NodeIndex;
   private backend!: FileclassBridge;
@@ -31,9 +31,9 @@ export default class NodesPlugin extends Plugin {
     this.index = new NodeIndex(this.app, () => this.backend.members());
     this.captures = new CaptureController(this.app, this.backend, this.index, () => this.settings);
     this.cache = new FileclassCache(this.app, this.backend, this.index, () => {
-      this.captures.cancelAll(); this.closeModals();
+      this.publicApi?.cancelAll(); this.captures.cancelAll(); this.closeModals();
     });
-    const api = new PublicNodesApi(this.app, this.index, () => this.cache.types(), this.captures, () => this.available());
+    const api = new PublicNodesApi(this.app, this.index, () => this.cache.types(), this.captures, () => this.available(), this.backend);
     this.publicApi = api;
     this.register(() => {
       this.live = false; api.dispose(); this.cache.dispose(); this.closeModals(); this.index.dispose(); this.publicApi = undefined;
@@ -59,7 +59,7 @@ export default class NodesPlugin extends Plugin {
   }
   typeInfo(name: string): ClassInfo | undefined { return this.cache.typeInfo(name); }
   async saveSettings(settings: NodesSettings): Promise<void> {
-    this.captures.cancelAll(); this.closeModals(); this.settings = { ...settings };
+    this.publicApi?.cancelAll(); this.captures.cancelAll(); this.closeModals(); this.settings = { ...settings };
     // Deliberately do not persist or restore legacy auto-pruning records.
     this.saves = this.saves.catch(() => {}).then(() => this.saveData({ ...this.settings }));
     await this.saves; await this.cache.refresh();
