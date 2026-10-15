@@ -45,8 +45,11 @@ export async function createTypedNote(app: App, backend: FileclassBackend, setti
   const current = await backend.types(); guard();
   if (!current.some(item => item.name === className)) throw new Error('That Fileclass is no longer available');
   if (app.vault.getAbstractFileByPath(path)) throw new Error(`A file already exists at ${path}`);
+  // Resolve the live alias after all async work so a settings change is respected.
+  const binding = backend.bindingProperty?.(settings.classProperty) ?? settings.classProperty;
+  guard();
   // Vault.create refuses racing duplicates. Never modify an existing file.
-  return app.vault.create(path, renderTypedNote(className, title, settings.classProperty, body));
+  return app.vault.create(path, renderTypedNote(className, title, binding, body));
 }
 
 export async function pause(ms: number, signal?: AbortSignal): Promise<void> {
@@ -74,5 +77,5 @@ export async function waitForBinding(app: App, backend: FileclassBackend, file: 
     if (Date.now() >= deadline) break;
     await pause(50, signal);
   } while (true);
-  throw new Error('Fileclass has not recognized the created note. Check that FileClass Inline’s class binding property matches Fileclass’s alias; the note has been kept');
+  throw new Error('Fileclass has not recognized the created note. Check Fileclass’s alias and indexing status; the note has been kept');
 }

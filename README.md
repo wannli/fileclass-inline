@@ -13,10 +13,10 @@ No Fileclass source changes, private modal imports, separate schema engine, or D
 In **Settings → FileClass Inline**:
 
 - **Capture folder:** where new notes go; default `Nodes`. Existing typed notes can be found anywhere in the vault.
-- **Class binding property:** must match Fileclass's *fileClass alias*; default `fileClass`.
+- **Fallback class binding property:** used only when Fileclass does not expose its settings alias; default `fileClass`.
 - **Inline trigger:** default `@`.
 
-Class names and icons come from Fileclass.
+Class names and icons come from Fileclass. At write time, creation automatically uses the enabled Fileclass plugin's `settings.fileClassAlias`, read through a narrow, read-only compatibility accessor because Fileclass's public API does not expose the alias. FileClass Inline's `classProperty` setting is only a fallback when that settings alias is not exposed; in that case, match the fallback to Fileclass's alias. Existing notes are never rewritten when the alias or fallback changes.
 
 ### Example Fileclass
 
@@ -40,7 +40,7 @@ fields:
 ---
 ```
 
-A newly captured note initially contains only the binding and body:
+A newly captured note initially contains only the binding and body (shown with the default `fileClass` alias; a configured alias replaces that property name):
 
 ```markdown
 ---
@@ -95,7 +95,7 @@ Desktop, mobile and e-ink/Boox controls use native widgets, keyboard shortcuts a
 
 ## Moving from the previous standalone schema system
 
-This is a Fileclass-backed replacement, not a second schema mode. Previous `nodeSchema`/`nodeType` definitions are not read or converted automatically. Define matching Fileclasses and bind existing notes through Fileclass's supported conventions. If you reuse a `type` property, configure the same alias in both plugins and ensure its values match actual class names.
+This is a Fileclass-backed replacement, not a second schema mode. Previous `nodeSchema`/`nodeType` definitions are not read or converted automatically. Define matching Fileclasses and bind existing notes through Fileclass's supported conventions. If you reuse a `type` property, configure it as Fileclass's alias and ensure its values match actual class names. Creation reads that alias automatically; only set FileClass Inline's fallback to match if Fileclass does not expose its settings alias.
 
 No existing notes are moved, rewritten or deleted. Old standalone schema and pruning settings are ignored. The integration API is now **v2** because creation/completion semantics changed; v1-only Reader integrations must be updated explicitly. See [API.md](API.md).
 

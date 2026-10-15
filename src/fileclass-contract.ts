@@ -19,6 +19,8 @@ export interface FieldChoice { value: string; label: string }
 export interface FileclassBackend {
   /** Throws an actionable error when unavailable; identity changes on reload. */
   token(): object;
+  /** Current Fileclass alias; older hosts may use the caller’s fallback. */
+  bindingProperty?(fallback: string): string;
   types(): Promise<ClassInfo[]>;
   members(signal?: AbortSignal): Promise<ClassMember[]>;
   classesFor(path: string): Promise<string[]>;

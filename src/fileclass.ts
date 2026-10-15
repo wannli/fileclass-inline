@@ -3,7 +3,8 @@ import { missingRequired, type ClassInfo, type ClassMember, type FieldChoice, ty
 import { FILE_TYPES, SELECT_TYPES, freshRequired, unresolved, waitForMetadata, type PublicApi, type Session } from './fileclass-fields';
 
 const METHODS = ['listFileClasses', 'getSchema', 'getFields', 'getValue', 'allowedValues', 'fileCandidates', 'explain', 'setValue'] as const;
-type PluginHost = { plugins?: { getPlugin?: (id: string) => { api?: unknown } | null; plugins?: Record<string, { api?: unknown }> } };
+type FileclassPlugin = { api?: unknown; settings?: { fileClassAlias?: unknown } };
+type PluginHost = { plugins?: { getPlugin?: (id: string) => FileclassPlugin | null; plugins?: Record<string, FileclassPlugin> } };
 type NoteTarget = { path: string; file: TFile };
 type FieldBinding = { key: string; target: NoteTarget; api: PublicApi; written: boolean };
 
@@ -26,6 +27,21 @@ export class FileclassBridge implements FileclassBackend {
       throw new Error('Fileclass public API v1 is incomplete. Update Fileclass, then reopen the picker.');
     }
     return api as PublicApi;
+  }
+
+  bindingProperty(fallback: string): string {
+    const api = this.token();
+    const host = (this.app as App & PluginHost).plugins;
+    const plugin = typeof host?.getPlugin === 'function' ? host.getPlugin('fileclass') : host?.plugins?.fileclass;
+    if (plugin?.api !== api) throw new Error('Fileclass changed or was reloaded; start again');
+    // Compatibility boundary: public API v1 does not expose the global binding alias.
+    // Read this one setting live; never mutate or retain Fileclass’s private settings.
+    const alias = plugin.settings?.fileClassAlias;
+    if (alias === undefined) return fallback;
+    if (typeof alias !== 'string' || !alias.trim() || ['__proto__', 'prototype', 'constructor'].includes(alias)) {
+      throw new Error('Fileclass’s fileClass alias is invalid. Check its settings before creating a note.');
+    }
+    return alias;
   }
 
   private session(signal?: AbortSignal, target?: NoteTarget): Session {

@@ -52,7 +52,7 @@ export class NodesSettingsTab extends PluginSettingTab {
           .onChange(value => { draft.nodesFolder = value; });
         new FolderSuggest(this.app, text.inputEl);
       });
-    new Setting(containerEl).setName('Class binding property').setDesc('Must match Fileclass’s “fileClass alias” setting. Default: fileClass.')
+    new Setting(containerEl).setName('Fallback class binding property').setDesc('Creation uses Fileclass’s configured alias automatically. This is used only if Fileclass does not expose its alias. Default: fileClass.')
       .addText(text => text.setValue(draft.classProperty).onChange(value => { draft.classProperty = value; }));
     new Setting(containerEl).setName('Inline trigger').setDesc('Default: @')
       .addText(text => text.setValue(draft.trigger).onChange(value => { draft.trigger = value; }));

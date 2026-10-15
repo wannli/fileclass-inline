@@ -56,9 +56,11 @@ interface NodesApi {
 
 1. Choose a class unless supplied or only one is available.
 2. Confirm an editable filename; `suggestedTitle` is never an unattended API write.
-3. Create a normal note in the configured capture folder, with the configured class marker.
+3. Create a normal note in the configured capture folder, using Fileclass's class binding alias resolved at write time.
 4. Wait briefly for Fileclass to recognize the actual note.
 5. Prompt only for unresolved required fields, then return its identity.
+
+All creation entry points resolve the binding property at write time from the enabled Fileclass plugin's `settings.fileClassAlias` through a narrow, read-only compatibility accessor. Fileclass's public API does not expose this global alias; `getSchema().options` contains class-specific options, not global settings. FileClass Inline's `classProperty` setting (UI: **Fallback class binding property**, default `fileClass`) is used only when Fileclass does not expose its settings alias. The accessor does not modify Fileclass settings, and alias or fallback changes never rewrite existing notes.
 
 No optional fields cause a completion form. Closing required completion keeps the created note and any saved values and returns its identity. It does **not** guarantee that every required field is complete or that the note passed a comprehensive schema audit.
 

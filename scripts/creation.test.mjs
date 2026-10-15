@@ -45,6 +45,22 @@ test('custom binding uses safe YAML serialization, not interpolated frontmatter'
   const file = await createTypedNote(f.app, f.backend, { ...settings, classProperty: 'type' }, 'Person', 'Ada');
   assert.deepEqual(JSON.parse(f.contents.get(file.path).split('\n')[1]), { type: 'Person' });
 });
+test('creation uses the live Fileclass alias instead of its own fallback', async () => {
+  const f = fixture();
+  let alias = 'oldAlias';
+  f.backend.bindingProperty = () => alias;
+  f.app.vault.createFolder = async path => {
+    f.files.set(path, new globalThis.__CreationFolder(path)); alias = 'note type';
+  };
+  const file = await createTypedNote(f.app, f.backend, settings, 'Person', 'Ada');
+  assert.deepEqual(JSON.parse(f.contents.get(file.path).split('\n')[1]), { 'note type': 'Person' });
+});
+test('invalid Fileclass alias prevents writing a note', async () => {
+  const f = fixture();
+  f.backend.bindingProperty = () => { throw new Error('Invalid alias'); };
+  await assert.rejects(createTypedNote(f.app, f.backend, settings, 'Person', 'Ada'), /Invalid alias/);
+  assert.equal(f.writes(), 0);
+});
 for (const title of ['../Ada', ' Ada', 'Ada ', 'Ada.', 'Ada/new', 'A\nB']) test(`reject unsafe name ${JSON.stringify(title)}`, async () => {
   const f = fixture();
   assert.ok(titleError(title));

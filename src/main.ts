@@ -104,12 +104,13 @@ export default class NodesPlugin extends Plugin {
     modal.contentEl.createEl('h2', { text: 'FileClass Inline · Fileclass' });
     try {
       this.backend.token();
+      const binding = this.backend.bindingProperty(this.settings.classProperty);
+      modal.contentEl.createEl('p', { text: `Creation writes “${binding}” in ${this.settings.nodesFolder}/ using Fileclass’s configured alias (or the fallback if unavailable). Optional fields never trigger a form.` });
       if (!this.cache.available()) throw new Error('Fileclass is enabled, but its catalog or note index could not be read. Check Fileclass and retry.');
       const classes = this.cache.types();
       modal.contentEl.createEl('p', { text: `${classes.length} class(es), ${this.index.all().length} typed note(s). Icons come from Fileclass. Automatic cleanup is disabled.` });
       if (!classes.length) modal.contentEl.createEl('p', { text: 'Fileclass may still be indexing. Define a class in Fileclass, then try again.' });
     } catch (error) { modal.contentEl.createEl('p', { text: String(error), cls: 'mod-warning' }); }
-    modal.contentEl.createEl('p', { text: `Creation writes “${this.settings.classProperty}” in ${this.settings.nodesFolder}/. Match this property to Fileclass’s configured alias. Optional fields never trigger a form.` });
     this.openModal(modal);
   }
   private openModal(modal: Modal): void {
