@@ -35,7 +35,11 @@ const { outputFiles } = await build({
         open() { this.app.dialog = this; this.app.dialogs.push(this); this.onOpen?.(); }
         close() { if (this.closed) return; this.closed = true; this.onClose?.(); }
       }
-      export class SuggestModal extends Modal { setPlaceholder(value) { this.placeholder = value; } }
+      export class SuggestModal extends Modal {
+        constructor(app) { super(app); this.inputEl = { value: '', dispatchEvent: () => {} }; }
+        onOpen() {} onClose() {}
+        setPlaceholder(value) { this.placeholder = value; }
+      }
       export class AbstractInputSuggest { constructor(app, inputEl) { this.app = app; this.inputEl = inputEl; } setValue(value) { this.value = value; } close() {} }
       export class PluginSettingTab {}
       export const setIcon = (el, icon) => { el.icon = icon; iconCalls.push({ el, icon }); };
@@ -106,7 +110,7 @@ export function fixture() {
   };
   const index = new NodeIndex(app, () => backend.members());
   const capture = new CaptureController(app, backend, index, () => settings);
-  const api = new PublicNodesApi(app, index, () => state.types, capture, () => state.connected);
+  const api = new PublicNodesApi(app, index, () => state.types, capture, () => state.connected, backend);
   function submit(title) {
     const dialog = app.dialog;
     if (title !== undefined) { dialog.inputs[0].value = title; dialog.inputs[0].change(title); }
