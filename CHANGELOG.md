@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/wannli/fileclass-inline/compare/0.6.0...0.6.1) (2026-10-15)
+
+
+### Fixed
+
+* **main:** respect Fileclass binding alias ([f2f1334](https://github.com/wannli/fileclass-inline/commit/f2f1334ce8d4ccfbb23d65c3cc019f5c71007c38))
+
 ## [0.6.0](https://github.com/wannli/fileclass-inline/compare/0.5.0...0.6.0) (2026-10-15)
 
 
