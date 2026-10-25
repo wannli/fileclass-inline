@@ -220,3 +220,29 @@ test('embedded creation rejects missing classes and invalid titles without anoth
     assert.equal(f.app.dialogs.length, 0);
   }
 });
+
+test('linked creation accepts a title already chosen by the caller without a second name prompt', async () => {
+  const f = fixture();
+  f.add('Source.md');
+  let linked = false;
+  const node = await f.api.createNodeForLink({ type: 'person', suggestedTitle: 'Ada', sourcePath: 'Source.md', acceptSuggestedTitle: true }, async () => { linked = true; });
+  assert.equal(node.path, 'Nodes/Ada.md');
+  assert.equal(linked, true);
+  assert.equal(f.app.dialogs.length, 0);
+});
+
+test('accepted linked titles reject missing, invalid and colliding names without a prompt or write', async () => {
+  for (const options of [
+    { type: 'person', suggestedTitle: '' },
+    { type: 'person', suggestedTitle: '../Ada' },
+    { type: 'person', suggestedTitle: 'Ada', collide: true },
+    { suggestedTitle: 'Ada' },
+  ]) {
+    const f = fixture();
+    f.add('Source.md');
+    if (options.collide) f.add('Nodes/Ada.md');
+    assert.equal(await f.api.createNodeForLink({ ...options, sourcePath: 'Source.md', acceptSuggestedTitle: true }, async () => assert.fail('No link expected')), null);
+    assert.equal(f.counts.writes, 0);
+    assert.equal(f.app.dialogs.length, 0);
+  }
+});

@@ -9,7 +9,7 @@ import type { NodesSettings } from './settings';
 export interface CreatedCapture { file: TFile; type: ClassInfo; classes: string[]; aliases: string[] }
 export interface CaptureOptions {
   type?: string; suggestedTitle?: string; signal?: AbortSignal; sourcePath?: string;
-  inline?: boolean; body?: string; completionContainer?: HTMLElement;
+  inline?: boolean; body?: string; completionContainer?: HTMLElement; acceptSuggestedTitle?: boolean;
 }
 class LinkFailure extends Error { constructor(readonly original: unknown) { super('The created note could not be linked'); } }
 
@@ -52,7 +52,7 @@ export class CaptureController {
         assertSession(this.backend, token, signal);
         if (!this.active || JSON.stringify(settings) !== JSON.stringify(this.settings())) throw new Error('FileClass Inline settings changed; start again');
       };
-      if (options.completionContainer && !options.type) throw new Error('Choose a Fileclass before embedded creation.');
+      if ((options.completionContainer || options.acceptSuggestedTitle) && !options.type) throw new Error('Choose a Fileclass before creating.');
       const classes = await this.backend.types(); guard();
       if (!classes.length) throw new Error('No Fileclasses are available yet. Enable Fileclass, wait for its index, and define a class.');
       const chosen = options.type !== undefined ? classes.find(item => item.name === options.type) :
@@ -63,7 +63,7 @@ export class CaptureController {
         return null;
       }
       let title = options.suggestedTitle ?? '';
-      if (options.completionContainer && (!options.type || titleError(title) || this.app.vault.getAbstractFileByPath(`${settings.nodesFolder}/${title}.md`))) throw new Error('Choose an available class and a unique valid title before creating.');
+      if ((options.completionContainer || options.acceptSuggestedTitle) && (!options.type || titleError(title) || this.app.vault.getAbstractFileByPath(`${settings.nodesFolder}/${title}.md`))) throw new Error('Choose an available class and a unique valid title before creating.');
       if (!options.inline || titleError(title) || this.app.vault.getAbstractFileByPath(`${settings.nodesFolder}/${title}.md`)) {
         const selected = await chooseName(this.app, chosen.name, title, settings.nodesFolder, signal); guard();
         if (selected === null) return null;
