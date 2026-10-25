@@ -34,6 +34,7 @@ interface NodesApi {
       suggestedTitle?: string;
       sourcePath: string;
       signal?: AbortSignal;
+      acceptSuggestedTitle?: boolean;
     },
     link: (node: NodeResult) => Promise<void>
   ): Promise<NodeResult | null>;
@@ -79,6 +80,8 @@ The caller owns guarded source writes, including navigation/content checks. File
 ## Linked capture
 
 `createNodeForLink()` creates and confirms binding, then invokes the supplied `link` callback **before required completion**. This lets the originating text become a link before a required-fields modal opens.
+
+Callers that already obtained an explicit class and title may set `acceptSuggestedTitle: true` on `createNodeForLink()`. A valid, unique title is used without another name prompt. Missing, invalid or colliding titles fail before creation; the provider never silently renames them. Required-field completion remains available after linking. Standalone `createNode()` still confirms its editable filename.
 
 - FileClass Inline checks source file identity/path before the callback. The caller must additionally guard its own editor, selection, source content and navigation state.
 - The callback receives an independent snapshot and must reject failed/uncertain writes. Rejections propagate, including arbitrary rejection values. The target note is retained; completion does not run after a failed callback.

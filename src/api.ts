@@ -6,7 +6,7 @@ import { LinkPicker, type LinkChoice } from './link-picker';
 
 export interface NodeResult { path: string; title: string; type: string; classes: string[]; aliases: string[]; icon?: string }
 export interface NodeType { type: string; label: string; icon?: string }
-export interface CreateNodeOptions { type?: string; suggestedTitle?: string; sourcePath?: string; signal?: AbortSignal; completionContainer?: HTMLElement }
+export interface CreateNodeOptions { type?: string; suggestedTitle?: string; sourcePath?: string; signal?: AbortSignal; completionContainer?: HTMLElement; acceptSuggestedTitle?: boolean }
 export interface PickNodeForLinkOptions { suggestedTitle?: string; sourcePath: string; signal?: AbortSignal }
 export interface NodesApi {
   readonly version: 2;
@@ -122,7 +122,7 @@ export class PublicNodesApi implements NodesApi {
     if (!this.alive() || options.signal?.aborted) return null;
     const source = this.app.vault.getAbstractFileByPath(options.sourcePath);
     if (!(source instanceof TFile)) return null;
-    const record = await this.capture.run({ ...options, inline: !!options.completionContainer }, async created => {
+    const record = await this.capture.run({ ...options, inline: !!options.completionContainer || !!options.acceptSuggestedTitle }, async created => {
       if (!this.alive() || options.signal?.aborted || source.path !== options.sourcePath || this.app.vault.getAbstractFileByPath(options.sourcePath) !== source) return false;
       // The caller owns its editor/content guard. Pass an independent snapshot.
       await link(this.created(created));
