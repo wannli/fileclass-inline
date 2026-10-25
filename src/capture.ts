@@ -9,7 +9,7 @@ import type { NodesSettings } from './settings';
 export interface CreatedCapture { file: TFile; type: ClassInfo; classes: string[]; aliases: string[] }
 export interface CaptureOptions {
   type?: string; suggestedTitle?: string; signal?: AbortSignal; sourcePath?: string;
-  inline?: boolean; body?: string;
+  inline?: boolean; body?: string; completionContainer?: HTMLElement;
 }
 class LinkFailure extends Error { constructor(readonly original: unknown) { super('The created note could not be linked'); } }
 
@@ -62,6 +62,7 @@ export class CaptureController {
         return null;
       }
       let title = options.suggestedTitle ?? '';
+      if (options.completionContainer && (!options.type || titleError(title) || this.app.vault.getAbstractFileByPath(`${settings.nodesFolder}/${title}.md`))) throw new Error('Choose an available class and a unique valid title before creating.');
       if (!options.inline || titleError(title) || this.app.vault.getAbstractFileByPath(`${settings.nodesFolder}/${title}.md`)) {
         const selected = await chooseName(this.app, chosen.name, title, settings.nodesFolder, signal); guard();
         if (selected === null) return null;
@@ -91,7 +92,7 @@ export class CaptureController {
         throw new Error('The created note moved, disappeared or was replaced during linking; required completion was skipped');
       }
       // No form at all when every required value is satisfied. Optional fields never enter this UI.
-      await completeRequiredFields(this.app, this.backend, created.path, signal);
+      await completeRequiredFields(this.app, this.backend, created.path, signal, options.completionContainer);
       return signal.aborted ? null : record;
     } catch (error) {
       if (error instanceof LinkFailure) {

@@ -12,7 +12,7 @@ export interface RequiredSession {
 
 /** Called only after creation and source-link insertion. Cancellation never removes either. */
 export async function completeRequiredFields(app: App, backend: FileclassBackend, path: string,
-  signal?: AbortSignal): Promise<void> {
+  signal?: AbortSignal, container?: HTMLElement): Promise<void> {
   if (signal?.aborted) return;
   const target = app.vault.getAbstractFileByPath(path);
   if (!(target instanceof TFile) || target.path !== path) throw new Error('The note is unavailable. Continue in Fileclass.');
@@ -61,7 +61,7 @@ export async function completeRequiredFields(app: App, backend: FileclassBackend
       if (!fields.length) { finish(); return; }
       if (!active()) return;
       modal = new RequiredModal(app, backend, path, fields, session);
-      modal.open();
+      if (container) modal.mount(container); else modal.open();
     })().catch(error => { if (active()) finish(error); });
   });
 }

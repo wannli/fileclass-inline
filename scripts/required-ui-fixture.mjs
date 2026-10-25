@@ -1,11 +1,11 @@
 import { build } from 'esbuild';
 
-const bundle = await build({ stdin: { contents: "export * from './src/required-ui'; export { TFile } from 'obsidian'; export { MetadataPendingError } from './src/fileclass-contract';", resolveDir: process.cwd() },
+const bundle = await build({ stdin: { contents: "export * from './src/required-ui'; export { TFile, Element, Platform } from 'obsidian'; export { MetadataPendingError } from './src/fileclass-contract';", resolveDir: process.cwd() },
   bundle: true, platform: 'node', format: 'esm', write: false,
   plugins: [{ name: 'obsidian-dom', setup(build) {
     build.onResolve({ filter: /^obsidian$/ }, () => ({ path: 'host', namespace: 'stub' }));
     build.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: `
-      class Element {
+      export class Element {
         constructor(tag = 'div', options = {}, ownerDocument = { activeElement: null, focusCalls: [] }) {
           this.ownerDocument = ownerDocument;
           this.tag = tag; this.children = []; this.text = options.text || ''; this.style = {};
@@ -64,10 +64,11 @@ const bundle = await build({ stdin: { contents: "export * from './src/required-u
         close() { if (this.closed) return; this.closed = true; this.app.closed++; this.onClose?.(); }
       }
       export class TFile { constructor(path) { this.path = path; } }
+      export const Platform = { isMobile: false };
       export class Notice { constructor(text) { (globalThis.requiredNotices ||= []).push(text); } }
     ` }));
   } }] });
-export const { completeRequiredFields, TFile, MetadataPendingError } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString('base64')}`);
+export const { completeRequiredFields, TFile, Element, Platform, MetadataPendingError } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString('base64')}`);
 export const tick = () => new Promise(resolve => setImmediate(resolve));
 export function deferred() { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; }
 export const field = (name, type = 'Input', extra = {}) => ({ name, owner: 'Task', type, value: undefined, options: {}, supported: true, ...extra });

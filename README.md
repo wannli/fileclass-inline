@@ -114,3 +114,7 @@ The development command prepares a protected, gitignored `dummy-vault/`, verifie
 - `dist/` — release assets only; no test vault or Hot Reload marker.
 
 Native Obsidian and real-device smoke checks are still needed after UI/lifecycle changes. See [VERIFICATION.md](VERIFICATION.md) for completed checks and device limitations.
+
+### Embedded creation for callers
+
+Public API v2 advertises optional `embeddedCreation: true`. A caller may pass a connected `completionContainer` HTMLElement with an explicit `type`, `suggestedTitle`, and cancellation `signal` to `createNodeForLink`. The chosen title is used directly; invalid or duplicate titles fail without opening another dialog. Required fields render in that container, with keyboard submission and no mobile autofocus. The caller owns the surrounding dialog and aborts the signal when it closes. The durable link callback still precedes required-field completion; cancellation never deletes a created note. Omitting the container preserves the standalone creation UI.

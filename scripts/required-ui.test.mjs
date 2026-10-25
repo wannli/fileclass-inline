@@ -4,7 +4,7 @@ import './required-ui-pending-tests.mjs';
 import './required-ui-date-tests.mjs';
 import './required-ui-focus-tests.mjs';
 import assert from 'node:assert/strict';
-import { completeRequiredFields, TFile, fixture, field, tick, deferred, text, row, controls, input, button, save, check } from './required-ui-fixture.mjs';
+import { completeRequiredFields, TFile, Element, Platform, fixture, field, tick, deferred, text, row, controls, input, button, save, check } from './required-ui-fixture.mjs';
 
 test('no missing fields: no modal or unrelated/optional metadata inspection', async () => {
   const f = fixture(); f.state.optional = new Proxy({}, { get() { throw Error('Optional inspected'); } });
@@ -192,4 +192,21 @@ for (const mode of ['empty', 'cancel', 'error']) test(`signal listeners cleaned 
   if (mode === 'error') await assert.rejects(pending, /Missing target note/);
   else { await tick(); if (mode === 'cancel') f.app.dialog.close(); await pending; }
   assert.equal(handlers, 0);
+});
+
+for (const mobile of [false, true]) test(`embedded completion reuses the caller surface without a modal (mobile=${mobile})`, async () => {
+  const f = fixture([field('Title')]), container = new Element(), controller = new AbortController();
+  Platform.isMobile = mobile;
+  f.app.dialog = { contentEl: container };
+  try {
+    const pending = completeRequiredFields(f.app, f.backend, 'Nodes/New.md', controller.signal, container);
+    await tick();
+    assert.equal(f.app.opened, 0);
+    assert.equal(container.ownerDocument.focusCalls.length, mobile ? 0 : 1);
+    input(f.app, 'Title', 'Value');
+    await save(f.app); await pending;
+    assert.equal(f.state.values.get('Title'), 'Value');
+    assert.equal(f.app.closed, 0);
+    assert.equal(container.children.length, 0);
+  } finally { controller.abort(); Platform.isMobile = false; }
 });

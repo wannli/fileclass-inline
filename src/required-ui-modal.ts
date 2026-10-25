@@ -1,4 +1,4 @@
-import { type App, type ButtonComponent, Modal, Setting } from 'obsidian';
+import { type App, type ButtonComponent, Modal, Setting, Platform } from 'obsidian';
 import { MetadataPendingError, type FileclassBackend, type RequiredField } from './fileclass-contract';
 import type { RequiredSession } from './required-ui';
 import { RequiredRow } from './required-ui-fields';
@@ -6,6 +6,8 @@ import { touchTarget } from './required-ui-choices';
 import { choiceTypes, fieldKey, message, sameDefinition, snapshot, unsupported, validated } from './required-ui-values';
 
 export class RequiredModal extends Modal {
+  private embedded = false;
+  private embeddedClosed = false;
   private rows: RequiredRow[] = [];
   private busy = true;
   private fieldsEl!: HTMLElement;
@@ -21,9 +23,28 @@ export class RequiredModal extends Modal {
       void this.save(); return false;
     });
   }
+  /** Render provider-owned fields into the caller's existing modal, never another overlay. */
+  mount(container: HTMLElement): void {
+    this.embedded = true;
+    this.contentEl = container;
+    container.empty();
+    container.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault(); event.stopPropagation();
+        if (!event.repeat && !event.isComposing) void this.save();
+      }
+    }, { signal: this.session.signal });
+    this.onOpen();
+  }
+  close(): void {
+    if (!this.embedded) { super.close(); return; }
+    if (this.embeddedClosed) return;
+    this.embeddedClosed = true;
+    this.onClose();
+  }
   onOpen(): void {
     this.contentEl.createEl('h2', { text: 'Complete required fields' });
-    this.contentEl.createEl('p', { text: 'Note already created; saved fields are kept. Optional fields can be edited later in Fileclass.' });
+    this.contentEl.createEl('p', { text: this.embedded ? 'The note and saved values are kept on Cancel.' : 'Note already created; saved fields are kept. Optional fields can be edited later in Fileclass.' });
     this.fieldsEl = this.contentEl.createDiv();
     this.savedEl = this.contentEl.createEl('p', { attr: { role: 'status' } });
     this.errorEl = this.contentEl.createEl('p', { cls: 'mod-warning', attr: { role: 'alert' } });
@@ -38,7 +59,7 @@ export class RequiredModal extends Modal {
       if (!this.session.active()) return;
       this.setBusy(false);
       // Native Modal may initially focus Close while required controls are loading.
-      if (!this.session.active() || this.fieldsEl.contains(this.contentEl.ownerDocument.activeElement)) return;
+      if ((this.embedded && Platform.isMobile) || !this.session.active() || this.fieldsEl.contains(this.contentEl.ownerDocument.activeElement)) return;
       this.fieldsEl.querySelector<HTMLElement>('input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled])')
         ?.focus({ preventScroll: true });
     });
