@@ -198,3 +198,25 @@ test('creation hooks that remove copied source text cannot trigger source replac
   assert.equal(f.contents.get('Nodes/Ada.md'), 'External hook replaced content');
   assert.equal(f.index.all().length, 0); assert.equal(f.counts.required, 0);
 });
+
+
+test('embedded linked creation reuses the title without opening a prompt', async () => {
+  const f = fixture();
+  f.add('Source.md');
+  assert.equal(f.api.embeddedCreation, true);
+  let linked = false;
+  const node = await f.api.createNodeForLink({ type: 'person', suggestedTitle: 'Ada', sourcePath: 'Source.md', completionContainer: {} }, async () => { linked = true; });
+  assert.equal(node.path, 'Nodes/Ada.md');
+  assert.equal(linked, true);
+  assert.equal(f.app.dialogs.length, 0);
+});
+
+test('embedded creation rejects missing classes and invalid titles without another modal', async () => {
+  for (const options of [{ suggestedTitle: 'Ada' }, { type: 'person', suggestedTitle: '../Ada' }]) {
+    const f = fixture();
+    f.add('Source.md');
+    assert.equal(await f.api.createNodeForLink({ ...options, sourcePath: 'Source.md', completionContainer: {} }, async () => assert.fail('No link expected')), null);
+    assert.equal(f.counts.writes, 0);
+    assert.equal(f.app.dialogs.length, 0);
+  }
+});

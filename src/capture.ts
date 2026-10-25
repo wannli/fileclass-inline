@@ -52,6 +52,7 @@ export class CaptureController {
         assertSession(this.backend, token, signal);
         if (!this.active || JSON.stringify(settings) !== JSON.stringify(this.settings())) throw new Error('FileClass Inline settings changed; start again');
       };
+      if (options.completionContainer && !options.type) throw new Error('Choose a Fileclass before embedded creation.');
       const classes = await this.backend.types(); guard();
       if (!classes.length) throw new Error('No Fileclasses are available yet. Enable Fileclass, wait for its index, and define a class.');
       const chosen = options.type !== undefined ? classes.find(item => item.name === options.type) :
