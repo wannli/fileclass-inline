@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/wannli/fileclass-inline/compare/0.6.1...0.7.0) (2026-10-25)
+
+
+### Added
+
+* **api:** accept explicitly chosen linked note titles ([be3af0b](https://github.com/wannli/fileclass-inline/commit/be3af0be1bd07de01325d02ba59dcb4ed6b48a58))
+* **api:** accept explicitly chosen linked note titles ([8b0b3b5](https://github.com/wannli/fileclass-inline/commit/8b0b3b5421520d484066e717398faa4d00bc46bd))
+* **api:** embed required completion in caller-owned dialogs ([7694362](https://github.com/wannli/fileclass-inline/commit/769436202908390d1145bf4c3c8f200d633849f7))
+
+
+### Fixed
+
+* **api:** prevent modal fallback during embedded creation ([edae42f](https://github.com/wannli/fileclass-inline/commit/edae42f53c240a2c2cee6a7bea4b371931986498))
+
 ## [0.6.1](https://github.com/wannli/fileclass-inline/compare/0.6.0...0.6.1) (2026-10-15)
 
 
